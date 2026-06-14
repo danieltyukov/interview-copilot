@@ -5,7 +5,7 @@
 function openDeepgram(config, h) {
   const params = new URLSearchParams({
     model: config.model || "nova-3",
-    encoding: "linear16", sample_rate: "16000", channels: "1",
+    encoding: "linear16", sample_rate: String(config.sampleRate || 16000), channels: "1",
     smart_format: "true", interim_results: "true", utterance_end_ms: "1000",
   });
   if (config.language) params.set("language", config.language);

@@ -1,7 +1,8 @@
-// Side-panel UI. Two transcription sources, labelled automatically:
-//   • your microphone  -> "Me"          (captured here in the side panel)
-//   • the meeting tab  -> "Interviewer" (captured in the offscreen doc)
-// No manual "who is who" — the source decides. Drafts talking points via Claude.
+// Side-panel UI + capture. One AudioContext (resumed under the Start gesture)
+// taps two sources, labelled by origin — no manual marking, no diarization:
+//   • your microphone -> "Me"
+//   • the meeting tab -> "Interviewer"
+// Each source streams to its own Deepgram connection; answers come from Claude.
 
 const API_MODEL_IDS = { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-4-6", opus: "claude-opus-4-8" };
 
@@ -15,12 +16,12 @@ Rules:
 
 const $ = (id) => document.getElementById(id);
 const settings = { deepgramKey: "", anthropicKey: "", model: "sonnet", language: "en", context: "" };
-
-const utterances = [];                 // { source: "me"|"interviewer", text }
-const partials = { me: null, interviewer: null };
-let micPipe = null, micDg = null;
-
 const NAME = { me: "Me", interviewer: "Interviewer" };
+
+const utterances = [];                       // { source, text }
+const partials = { me: null, interviewer: null };
+let hub = null;
+let sources = [];                            // [{ stop() }]
 
 // ---- settings ----
 async function loadSettings() {
@@ -47,7 +48,6 @@ async function saveSettings() {
 // ---- transcript ----
 function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
 function cls(source) { return source === "me" ? "spk-Me" : "spk-Interviewer"; }
-
 function render() {
   const box = $("transcript");
   if (!utterances.length && !partials.me && !partials.interviewer) {
@@ -66,10 +66,8 @@ function render() {
 function addFinal(source, text) { utterances.push({ source, text }); partials[source] = null; render(); }
 function setPartial(source, text) { partials[source] = text; render(); }
 function setLevel(source, active) {
-  const el = source === "me" ? $("lvlMe") : $("lvlThem");
-  el.className = "lvldot " + (active ? "on" : "off");
+  (source === "me" ? $("lvlMe") : $("lvlThem")).className = "lvldot " + (active ? "on" : "off");
 }
-
 function latestQuestion() {
   for (let i = utterances.length - 1; i >= 0; i--) if (utterances[i].source === "interviewer") return utterances[i].text;
   return utterances.length ? utterances[utterances.length - 1].text : null;
@@ -85,42 +83,55 @@ function setState(state) {
   if (state !== "recording") { setLevel("me", false); setLevel("interviewer", false); }
 }
 
-async function startMic() {
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (e) {
-    status("Mic blocked — only the other side will be transcribed.", true);
-    return;
-  }
-  micDg = openDeepgram(
-    { key: settings.deepgramKey, model: "nova-3", language: settings.language },
-    { onPartial: (t) => setPartial("me", t), onFinal: (t) => addFinal("me", t),
-      onError: (m) => status("mic: " + m, true) }
+function attach(source, stream, playback) {
+  let dg;
+  const tap = hub.addSource(stream, (buf) => { if (dg) dg.sendPcm(buf); },
+    { playback, onLevel: (a) => setLevel(source, a) });
+  dg = openDeepgram(
+    { key: settings.deepgramKey, model: "nova-3", language: settings.language, sampleRate: hub.sampleRate },
+    { onPartial: (t) => setPartial(source, t), onFinal: (t) => addFinal(source, t),
+      onError: (m) => status(source + ": " + m, true) }
   );
-  micPipe = await startAudioPipe(stream, (buf) => micDg.sendPcm(buf),
-    { playback: false, onLevel: (a) => setLevel("me", a) }); // no playback → no echo
-}
-function stopMic() {
-  try { micPipe && micPipe.stop(); } catch {}
-  try { micDg && micDg.close(); } catch {}
-  micPipe = micDg = null;
+  sources.push({ stop() { try { tap.stop(); } catch {} try { dg.close(); } catch {} } });
 }
 
 async function start() {
   if (!settings.deepgramKey) return status("Add your Deepgram key in Settings first.", true);
   setState("recording");
-  await startMic(); // mic prompt happens here, in the side panel (a user gesture)
-  const resp = await chrome.runtime.sendMessage({
-    target: "background", cmd: "start",
-    config: { deepgramKey: settings.deepgramKey, deepgramModel: "nova-3", language: settings.language },
-  });
-  if (resp && resp.ok) status("Capturing: " + (resp.tabTitle || "active tab"));
-  else { status("Tab capture failed: " + (resp?.error || "unknown"), true); }
+  try {
+    hub = await createAudioHub();            // resume() runs here, under the Start gesture
+  } catch (e) {
+    setState("stopped");
+    return status("Audio init failed: " + e.message, true);
+  }
+
+  // your mic -> "Me" (prompts for mic permission the first time)
+  try {
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    attach("me", mic, false);
+  } catch (e) {
+    status("Mic blocked — only the other side will be transcribed.", true);
+  }
+
+  // the meeting tab -> "Interviewer"
+  const resp = await chrome.runtime.sendMessage({ target: "background", cmd: "getStreamId" });
+  if (!resp || !resp.ok) return status("Tab capture failed: " + (resp?.error || "unknown"), true);
+  try {
+    const tab = await navigator.mediaDevices.getUserMedia({
+      audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: resp.streamId } },
+    });
+    attach("interviewer", tab, true);        // playback so you still hear the call
+    status("Capturing: " + (resp.tabTitle || "active tab"));
+  } catch (e) {
+    status("Tab capture failed: " + e.message, true);
+  }
 }
-async function stop() {
-  stopMic();
-  await chrome.runtime.sendMessage({ target: "background", cmd: "stop" });
+
+function stop() {
+  sources.forEach((s) => { try { s.stop(); } catch {} });
+  sources = [];
+  try { hub && hub.close(); } catch {}
+  hub = null;
   setState("stopped");
 }
 
@@ -195,17 +206,6 @@ function status(msg, isErr) {
   el.textContent = msg;
   el.style.color = isErr ? "var(--red)" : "var(--muted)";
 }
-
-// ---- messages from the offscreen (interviewer source) ----
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.target !== "sidepanel") return;
-  const src = msg.source || "interviewer";
-  if (msg.type === "partial") setPartial(src, msg.text);
-  else if (msg.type === "final") addFinal(src, msg.text);
-  else if (msg.type === "level") setLevel(src, msg.active);
-  else if (msg.type === "status") { if (msg.state === "recording") setState("recording"); }
-  else if (msg.type === "error") status(msg.message, true);
-});
 
 // ---- wire up ----
 $("ackBox").addEventListener("change", (e) => ($("ackBtn").disabled = !e.target.checked));

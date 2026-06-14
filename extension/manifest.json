@@ -3,10 +3,13 @@
   "name": "Meeting Copilot",
   "version": "0.1.0",
   "description": "Visible meeting assistant: live transcript + context-grounded talking points for calls you're in (Google Meet, Microsoft Teams).",
-  "permissions": ["tabCapture", "offscreen", "sidePanel", "storage", "tabs"],
+  "permissions": ["tabCapture", "sidePanel", "storage", "tabs"],
   "host_permissions": [
     "https://api.anthropic.com/*",
     "https://api.deepgram.com/*"
+  ],
+  "web_accessible_resources": [
+    { "resources": ["worklet.js"], "matches": ["<all_urls>"] }
   ],
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "sidepanel.html" },
