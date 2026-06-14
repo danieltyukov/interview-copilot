@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Local config / secrets (keys live in ~/.config/interview-copilot/config.env)
+config.env
+*.env
+
+# App output
+interview-*.md
+
+# Editor / tooling
+.claude/
+.idea/
+.vscode/
+
+# Unrelated stray file that happened to be in this directory
+SLiCAP.ini

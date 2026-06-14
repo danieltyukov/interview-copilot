@@ -1,0 +1,56 @@
+<svg width="1080" height="340" viewBox="0 0 1080 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/><stop offset="1" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="bird" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0ea5a4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="340" rx="30" fill="url(#bg)"/>
+  <rect x="2" y="2" width="1076" height="336" rx="29" fill="none" stroke="#21262d" stroke-width="3"/>
+  <circle cx="36" cy="36" r="7" fill="#ff5f56"/>
+  <circle cx="60" cy="36" r="7" fill="#ffbd2e"/>
+  <circle cx="84" cy="36" r="7" fill="#27c93f"/>
+
+  <!-- parrot mascot -->
+  <g transform="translate(165,205)">
+    <path d="M-58 46 q -58 26 -96 0 q 40 -8 78 -46 z" fill="#f59e0b"/>
+    <ellipse cx="0" cy="18" rx="72" ry="84" fill="url(#bird)"/>
+    <ellipse cx="-14" cy="34" rx="36" ry="54" fill="#a7f3d0"/>
+    <path d="M26 -16 q 64 22 50 96 q -44 -8 -60 -58 z" fill="#0ea5a4"/>
+    <circle cx="8" cy="-58" r="54" fill="url(#bird)"/>
+    <circle cx="26" cy="-60" r="30" fill="#fde68a"/>
+    <circle cx="34" cy="-68" r="10" fill="#0d1117"/>
+    <circle cx="38" cy="-72" r="3.5" fill="#ffffff"/>
+    <path d="M60 -60 q 38 6 32 32 q -24 8 -38 -12 z" fill="#fb923c"/>
+    <path d="M56 -42 q 22 8 26 24 q -20 0 -30 -14 z" fill="#f97316"/>
+    <path d="M-46 -74 q 54 -64 112 -6" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="-48" cy="-60" r="13" fill="#e2e8f0"/>
+    <path d="M-48 -50 q -8 34 30 44" fill="none" stroke="#e2e8f0" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="-16" cy="-6" r="7" fill="#ef4444"/>
+  </g>
+
+  <!-- speech bubble -->
+  <g transform="translate(300,46)">
+    <rect x="0" y="0" width="262" height="70" rx="16" fill="#1f2937" stroke="#34d399" stroke-width="2.5"/>
+    <path d="M34 70 l 0 26 l 26 -26 z" fill="#1f2937"/>
+    <path d="M34 70 l 0 26 l 26 -26" fill="none" stroke="#34d399" stroke-width="2.5"/>
+    <text x="20" y="32" font-family="DejaVu Sans Mono, monospace" font-size="19" fill="#a7f3d0">psst&#8230; press</text>
+    <text x="20" y="56" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="bold" fill="#fbbf24">h &#8212; i got you</text>
+  </g>
+
+  <!-- title -->
+  <text x="386" y="180" font-family="DejaVu Sans, Verdana, sans-serif" font-weight="bold" font-size="54" fill="#e6edf3">Interview Copilot</text>
+  <text x="388" y="216" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#7d8590">reads your repo &#183; whispers the answer &#183; lives in your terminal</text>
+  <g transform="translate(388,236)">
+    <rect x="0" y="0" width="138" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+    <circle cx="22" cy="20" r="6" fill="#34d399"/>
+    <text x="38" y="27" font-family="DejaVu Sans Mono, monospace" font-size="17" fill="#9fb0c0">deepgram</text>
+  </g>
+  <g transform="translate(540,236)">
+    <rect x="0" y="0" width="160" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+    <circle cx="22" cy="20" r="6" fill="#fbbf24"/>
+    <text x="38" y="27" font-family="DejaVu Sans Mono, monospace" font-size="17" fill="#9fb0c0">claude api+cli</text>
+  </g>
+</svg>
