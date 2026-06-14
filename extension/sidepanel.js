@@ -30,8 +30,9 @@ const micState = { ok: false, msg: "" };     // mic is best-effort; tab audio is
 function updateDiag() {
   const st = hub ? hub.state() : "—";
   const rate = hub ? hub.sampleRate : "?";
+  const cap = hub && hub.usingWorklet ? (hub.usingWorklet() ? "worklet" : "scriptproc") : "—";
   $("diag").textContent =
-    `ctx:${st}@${rate}Hz · you ${frames.me}f ${dgOpen.me ? "dg✓" : "dg…"} · ` +
+    `ctx:${st}@${rate}Hz ${cap} · you ${frames.me}f ${dgOpen.me ? "dg✓" : "dg…"} · ` +
     `them ${frames.interviewer}f ${dgOpen.interviewer ? "dg✓" : "dg…"}`;
 }
 
