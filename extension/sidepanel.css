@@ -51,6 +51,7 @@ details summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
 details label { display: block; margin: 6px 0; color: var(--muted); }
 details label.inline { display: flex; align-items: center; gap: 6px; }
 footer { padding: 6px 10px; border-top: 1px solid var(--border); font-size: 11px; }
+.diag { color: #6e7681; font-size: 10.5px; margin-top: 3px; }
 
 /* consent gate */
 .gate { position: fixed; inset: 0; background: rgba(13,17,23,.97); z-index: 10;

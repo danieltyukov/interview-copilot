@@ -1,8 +1,10 @@
 // Shared audio hub. ONE AudioContext, resumed up front under the Start click's
-// user gesture (so it actually runs — this is the bit an offscreen doc can't do).
-// Both the mic and the tab stream attach to it as sources; each is tapped by an
-// AudioWorklet that emits int16 PCM. Runs at the native rate; the caller passes
-// that rate to Deepgram (no resampling / forced-16k surprises).
+// user gesture (so it actually runs — AudioContext.resume() hangs/stays suspended
+// without a gesture, which is why offscreen capture produced no audio).
+//
+// Uses ScriptProcessor: proven to work in-browser under a gesture, and needs no
+// addModule (the AudioWorklet module load was the extension-specific failure
+// point). The deprecation warning it logs is harmless.
 
 function floatTo16(f32) {
   const out = new Int16Array(f32.length);
@@ -16,35 +18,36 @@ function floatTo16(f32) {
 async function createAudioHub() {
   const ctx = new AudioContext();
   await ctx.resume(); // called while the Start gesture is still active
-  await ctx.audioWorklet.addModule(chrome.runtime.getURL("worklet.js"));
 
   return {
     sampleRate: ctx.sampleRate,
+    state: () => ctx.state,
 
-    // opts: { playback: bool, onLevel: (active)=>void }
+    // opts: { playback: bool (route to speakers — true for tab so you still hear
+    //         the call, false for mic so you don't echo), onLevel: (active)=>void }
     addSource(mediaStream, onPcm, opts = {}) {
       const src = ctx.createMediaStreamSource(mediaStream);
       if (opts.playback) src.connect(ctx.destination); // keep the call audible
 
-      const node = new AudioWorkletNode(ctx, "pcm-worklet");
-      src.connect(node);
-      node.connect(ctx.destination); // worklet only runs when it reaches the destination (outputs silence)
+      const proc = ctx.createScriptProcessor(4096, 1, 1);
+      src.connect(proc);
+      proc.connect(ctx.destination); // ScriptProcessor only runs when connected (outputs silence)
 
       let lvlTs = 0;
-      node.port.onmessage = (e) => {
-        const f32 = e.data;
-        onPcm(floatTo16(f32).buffer);
+      proc.onaudioprocess = (e) => {
+        const f = e.inputBuffer.getChannelData(0);
+        onPcm(floatTo16(f).buffer);
         if (opts.onLevel) {
           let sum = 0;
-          for (let i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
+          for (let i = 0; i < f.length; i++) sum += f[i] * f[i];
           const now = Date.now();
-          if (now - lvlTs > 200) { lvlTs = now; opts.onLevel(Math.sqrt(sum / f32.length) > 0.008); }
+          if (now - lvlTs > 200) { lvlTs = now; opts.onLevel(Math.sqrt(sum / f.length) > 0.008); }
         }
       };
 
       return {
         stop() {
-          try { node.disconnect(); } catch {}
+          try { proc.disconnect(); } catch {}
           try { src.disconnect(); } catch {}
           try { mediaStream.getTracks().forEach((t) => t.stop()); } catch {}
         },

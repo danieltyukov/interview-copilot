@@ -1,6 +1,6 @@
-// Shared Deepgram streaming client (offscreen + side panel). One connection per
-// audio source; the SOURCE determines the speaker (mic = you, tab = the others),
-// so no diarization or manual marking is needed.
+// Deepgram streaming client (used in the side panel). One connection per audio
+// source; the SOURCE determines the speaker (mic = you, tab = the others), so no
+// diarization or manual marking is needed.
 
 function openDeepgram(config, h) {
   const params = new URLSearchParams({

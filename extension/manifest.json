@@ -8,9 +8,6 @@
     "https://api.anthropic.com/*",
     "https://api.deepgram.com/*"
   ],
-  "web_accessible_resources": [
-    { "resources": ["worklet.js"], "matches": ["<all_urls>"] }
-  ],
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "sidepanel.html" },
   "action": { "default_title": "Open Meeting Copilot (side panel)" },

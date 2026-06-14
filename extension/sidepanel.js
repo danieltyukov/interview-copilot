@@ -22,6 +22,16 @@ const utterances = [];                       // { source, text }
 const partials = { me: null, interviewer: null };
 let hub = null;
 let sources = [];                            // [{ stop() }]
+const frames = { me: 0, interviewer: 0 };
+const dgOpen = { me: false, interviewer: false };
+
+function updateDiag() {
+  const st = hub ? hub.state() : "—";
+  const rate = hub ? hub.sampleRate : "?";
+  $("diag").textContent =
+    `ctx:${st}@${rate}Hz · you ${frames.me}f ${dgOpen.me ? "dg✓" : "dg…"} · ` +
+    `them ${frames.interviewer}f ${dgOpen.interviewer ? "dg✓" : "dg…"}`;
+}
 
 // ---- settings ----
 async function loadSettings() {
@@ -85,11 +95,13 @@ function setState(state) {
 
 function attach(source, stream, playback) {
   let dg;
-  const tap = hub.addSource(stream, (buf) => { if (dg) dg.sendPcm(buf); },
-    { playback, onLevel: (a) => setLevel(source, a) });
+  const tap = hub.addSource(stream, (buf) => {
+    if (dg) { dg.sendPcm(buf); frames[source]++; if (frames[source] % 10 === 0) updateDiag(); }
+  }, { playback, onLevel: (a) => setLevel(source, a) });
   dg = openDeepgram(
     { key: settings.deepgramKey, model: "nova-3", language: settings.language, sampleRate: hub.sampleRate },
-    { onPartial: (t) => setPartial(source, t), onFinal: (t) => addFinal(source, t),
+    { onOpen: () => { dgOpen[source] = true; updateDiag(); },
+      onPartial: (t) => setPartial(source, t), onFinal: (t) => addFinal(source, t),
       onError: (m) => status(source + ": " + m, true) }
   );
   sources.push({ stop() { try { tap.stop(); } catch {} try { dg.close(); } catch {} } });
@@ -104,6 +116,9 @@ async function start() {
     setState("stopped");
     return status("Audio init failed: " + e.message, true);
   }
+  frames.me = 0; frames.interviewer = 0;
+  dgOpen.me = false; dgOpen.interviewer = false;
+  updateDiag();
 
   // your mic -> "Me" (prompts for mic permission the first time)
   try {
@@ -133,6 +148,7 @@ function stop() {
   try { hub && hub.close(); } catch {}
   hub = null;
   setState("stopped");
+  updateDiag();
 }
 
 // ---- answer drafting (Anthropic streaming) ----
