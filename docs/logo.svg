@@ -1,55 +1,79 @@
-<svg width="1080" height="340" viewBox="0 0 1080 340" xmlns="http://www.w3.org/2000/svg">
+<svg width="1100" height="380" viewBox="0 0 1100 380" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0d1117"/><stop offset="1" stop-color="#161b22"/>
     </linearGradient>
     <linearGradient id="bird" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0ea5a4"/>
+      <stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#0d9488"/>
     </linearGradient>
   </defs>
-  <rect width="1080" height="340" rx="30" fill="url(#bg)"/>
-  <rect x="2" y="2" width="1076" height="336" rx="29" fill="none" stroke="#21262d" stroke-width="3"/>
-  <circle cx="36" cy="36" r="7" fill="#ff5f56"/>
-  <circle cx="60" cy="36" r="7" fill="#ffbd2e"/>
-  <circle cx="84" cy="36" r="7" fill="#27c93f"/>
+  <rect width="1100" height="380" rx="32" fill="url(#bg)"/>
+  <rect x="2" y="2" width="1096" height="376" rx="31" fill="none" stroke="#21262d" stroke-width="3"/>
+  <circle cx="38" cy="38" r="7.5" fill="#ff5f56"/>
+  <circle cx="63" cy="38" r="7.5" fill="#ffbd2e"/>
+  <circle cx="88" cy="38" r="7.5" fill="#27c93f"/>
 
-  <!-- parrot mascot -->
-  <g transform="translate(165,205)">
-    <path d="M-58 46 q -58 26 -96 0 q 40 -8 78 -46 z" fill="#f59e0b"/>
-    <ellipse cx="0" cy="18" rx="72" ry="84" fill="url(#bird)"/>
-    <ellipse cx="-14" cy="34" rx="36" ry="54" fill="#a7f3d0"/>
-    <path d="M26 -16 q 64 22 50 96 q -44 -8 -60 -58 z" fill="#0ea5a4"/>
-    <circle cx="8" cy="-58" r="54" fill="url(#bird)"/>
-    <circle cx="26" cy="-60" r="30" fill="#fde68a"/>
-    <circle cx="34" cy="-68" r="10" fill="#0d1117"/>
-    <circle cx="38" cy="-72" r="3.5" fill="#ffffff"/>
-    <path d="M60 -60 q 38 6 32 32 q -24 8 -38 -12 z" fill="#fb923c"/>
-    <path d="M56 -42 q 22 8 26 24 q -20 0 -30 -14 z" fill="#f97316"/>
-    <path d="M-46 -74 q 54 -64 112 -6" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="-48" cy="-60" r="13" fill="#e2e8f0"/>
-    <path d="M-48 -50 q -8 34 30 44" fill="none" stroke="#e2e8f0" stroke-width="6" stroke-linecap="round"/>
-    <circle cx="-16" cy="-6" r="7" fill="#ef4444"/>
+  <!-- ===== parrot mascot (front-facing) ===== -->
+  <g transform="translate(190,216)">
+    <!-- tail feathers -->
+    <path d="M-26 58 q -22 72 -64 98 q -6 -58 36 -114 z" fill="#f59e0b"/>
+    <path d="M3 64 q 0 80 -22 116 q -20 -56 -6 -124 z" fill="#fbbf24"/>
+    <path d="M32 58 q 26 66 8 112 q -26 -52 -36 -106 z" fill="#0f766e"/>
+    <!-- feet -->
+    <path d="M-22 112 l0 20 M-33 132 l22 0" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+    <path d="M26 112 l0 20 M15 132 l22 0" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+    <!-- body -->
+    <ellipse cx="0" cy="32" rx="82" ry="92" fill="url(#bird)"/>
+    <ellipse cx="0" cy="50" rx="50" ry="62" fill="#bbf7d0"/>
+    <!-- wings -->
+    <path d="M-80 -2 q -24 48 -2 96 q 28 -10 32 -60 z" fill="#0f766e"/>
+    <path d="M80 -2 q 24 48 2 96 q -28 -10 -32 -60 z" fill="#0f766e"/>
+    <!-- crest -->
+    <path d="M-24 -130 q -10 -32 8 -46 q 10 18 4 48 z" fill="#fbbf24"/>
+    <path d="M2 -138 q -2 -36 16 -48 q 6 26 -4 52 z" fill="#f59e0b"/>
+    <path d="M26 -130 q 12 -30 30 -32 q -2 26 -18 44 z" fill="#fbbf24"/>
+    <!-- head -->
+    <circle cx="0" cy="-64" r="78" fill="url(#bird)"/>
+    <!-- eyes -->
+    <circle cx="-34" cy="-70" r="26" fill="#ffffff"/>
+    <circle cx="34" cy="-70" r="26" fill="#ffffff"/>
+    <circle cx="-28" cy="-68" r="14" fill="#0b1220"/>
+    <circle cx="40" cy="-68" r="14" fill="#0b1220"/>
+    <circle cx="-23" cy="-73" r="5" fill="#ffffff"/>
+    <circle cx="45" cy="-73" r="5" fill="#ffffff"/>
+    <!-- beak (hooked) -->
+    <path d="M0 -52 q 28 0 26 24 q -2 24 -26 32 q -24 -8 -26 -32 q -2 -24 26 -24 z" fill="#fb923c"/>
+    <path d="M-14 -34 q 14 12 28 0 q -4 16 -14 18 q -10 -2 -14 -18 z" fill="#ea580c"/>
+    <circle cx="-9" cy="-46" r="2.4" fill="#9a3412"/>
+    <circle cx="9" cy="-46" r="2.4" fill="#9a3412"/>
+    <!-- headset -->
+    <path d="M-76 -66 q 76 -92 152 0" fill="none" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="-76" cy="-54" r="19" fill="#cbd5e1"/><circle cx="-76" cy="-54" r="9.5" fill="#475569"/>
+    <circle cx="76" cy="-54" r="19" fill="#cbd5e1"/><circle cx="76" cy="-54" r="9.5" fill="#475569"/>
+    <!-- mic boom + capsule near beak -->
+    <path d="M-76 -38 q -30 40 30 30" fill="none" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>
+    <ellipse cx="-44" cy="-12" rx="12" ry="9" fill="#475569" transform="rotate(24 -44 -12)"/>
   </g>
 
   <!-- speech bubble -->
-  <g transform="translate(300,46)">
-    <rect x="0" y="0" width="262" height="70" rx="16" fill="#1f2937" stroke="#34d399" stroke-width="2.5"/>
-    <path d="M34 70 l 0 26 l 26 -26 z" fill="#1f2937"/>
-    <path d="M34 70 l 0 26 l 26 -26" fill="none" stroke="#34d399" stroke-width="2.5"/>
-    <text x="20" y="32" font-family="DejaVu Sans Mono, monospace" font-size="19" fill="#a7f3d0">psst&#8230; press</text>
-    <text x="20" y="56" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="bold" fill="#fbbf24">h &#8212; i got you</text>
+  <g transform="translate(326,52)">
+    <rect x="0" y="0" width="262" height="72" rx="16" fill="#1f2937" stroke="#34d399" stroke-width="2.5"/>
+    <path d="M28 72 l -16 30 l 40 -30 z" fill="#1f2937"/>
+    <path d="M28 72 l -16 30 l 40 -30" fill="none" stroke="#34d399" stroke-width="2.5"/>
+    <text x="22" y="33" font-family="DejaVu Sans Mono, monospace" font-size="19" fill="#a7f3d0">psst&#8230; press</text>
+    <text x="22" y="57" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="bold" fill="#fbbf24">h &#8212; i got you</text>
   </g>
 
-  <!-- title -->
-  <text x="386" y="180" font-family="DejaVu Sans, Verdana, sans-serif" font-weight="bold" font-size="54" fill="#e6edf3">Interview Copilot</text>
-  <text x="388" y="216" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#7d8590">reads your repo &#183; whispers the answer &#183; lives in your terminal</text>
-  <g transform="translate(388,236)">
-    <rect x="0" y="0" width="138" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <!-- title block -->
+  <text x="404" y="208" font-family="DejaVu Sans, Verdana, sans-serif" font-weight="bold" font-size="56" fill="#e6edf3">Interview Copilot</text>
+  <text x="406" y="246" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#7d8590">reads your repo &#183; whispers the answer &#183; lives in your terminal</text>
+  <g transform="translate(406,268)">
+    <rect x="0" y="0" width="140" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>
     <circle cx="22" cy="20" r="6" fill="#34d399"/>
     <text x="38" y="27" font-family="DejaVu Sans Mono, monospace" font-size="17" fill="#9fb0c0">deepgram</text>
   </g>
-  <g transform="translate(540,236)">
-    <rect x="0" y="0" width="160" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <g transform="translate(560,268)">
+    <rect x="0" y="0" width="162" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>
     <circle cx="22" cy="20" r="6" fill="#fbbf24"/>
     <text x="38" y="27" font-family="DejaVu Sans Mono, monospace" font-size="17" fill="#9fb0c0">claude api+cli</text>
   </g>

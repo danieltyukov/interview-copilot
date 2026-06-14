@@ -25,11 +25,16 @@ git clone <your-repo-url> && cd inperson-interview-copilot
 ./install.sh           # creates a venv + installs `interview-copilot` on your PATH
 ```
 
-Add optional keys to `~/.config/interview-copilot/config.env` (chmod 600):
+> **No keys required — it works fully offline.** With neither key set, the app
+> runs entirely on-device: **local Whisper** for transcription and the **`claude`
+> CLI** for answers. Keys just make it faster, and each one **falls back to its
+> local counterpart automatically** (even mid-interview) if it's missing or fails.
+
+Optionally add keys to `~/.config/interview-copilot/config.env` (chmod 600) for speed:
 
 ```ini
-DEEPGRAM_API_KEY=...    # streaming transcription ($200 free credit). Else: local Whisper.
-ANTHROPIC_API_KEY=...   # fast answers (~1s). Else / on failure: the claude CLI.
+DEEPGRAM_API_KEY=...    # faster streaming transcription.  Absent → local Whisper.
+ANTHROPIC_API_KEY=...   # faster answers (~1s).            Absent / on failure → claude CLI.
 ```
 
 Verify it all:
@@ -65,10 +70,22 @@ interview-copilot
 ## How it works
 
 ```
-mic ─ffmpeg─▶ Deepgram stream ─┐                directory context ─┐
-              (or local Whisper)│                transcript so far ─┼─▶ Claude ─▶ first-person
-                                ▼                latest question  ─┘   (API→CLI)   answer (read aloud)
-                          live transcript ─────────────────────────▶  Session ─▶ interview-*.md
+  mic / room audio
+       │ (ffmpeg)
+       ▼
+  transcription ── Deepgram streaming
+       │            └─ no key / drop → local Whisper
+       ▼
+  live transcript + your repo's context + latest question
+       │
+       ▼
+  Claude ── API (fast)
+       │     └─ no key / failure → claude CLI
+       ▼
+  first-person answer ─▶ you read it aloud
+       │
+       ▼
+  interview-*.md (saved when you stop)
 ```
 
 Audio capture only *forwards* bytes; transcription and answer-drafting run off the
