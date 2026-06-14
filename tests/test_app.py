@@ -105,12 +105,32 @@ def test_header_normal_when_no_switch(tmp_path):
 def test_header_shows_fallback_tags_after_switch(tmp_path):
     tui = _tui_api_deepgram(tmp_path)
     tui._on_event({"type": "stt_switch", "backend": "local", "reason": "dropped"})
-    tui._on_event({"type": "answer_switch", "backend": "cli", "reason": "401"})
+    tui._on_event({"type": "help", "question": "Q?", "answer": "A", "served": "cli"})
     tui.console.print(tui._render())
     out = tui.console.export_text()
     assert "whisper:base (fallback)" in out      # STT switched, shown in header
-    assert "cli (fallback)" in out               # answers switched, shown in header
+    assert "cli (fallback)" in out               # answers served by CLI, shown in header
     assert tui.stt_active == "local" and tui.answer_active == "cli"
+
+
+def test_header_online_offline_marker(tmp_path):
+    tui = _tui_api_deepgram(tmp_path)
+    tui.console.print(tui._render())
+    assert "online" in tui.console.export_text()
+
+    tui._on_event({"type": "connectivity", "online": False})
+    assert tui.online is False
+    tui.console = Console(width=130, height=30, record=True)
+    tui.console.print(tui._render())
+    assert "OFFLINE" in tui.console.export_text()
+
+
+def test_header_local_answer_shows_ollama_model(tmp_path):
+    tui = _tui_api_deepgram(tmp_path)
+    tui._on_event({"type": "help", "question": "Q?", "answer": "A", "served": "local"})
+    tui.console.print(tui._render())
+    out = tui.console.export_text()
+    assert "llama3.2·local" in out               # local LLM model shown when offline
 
 
 def test_help_served_updates_answer_active(tmp_path):

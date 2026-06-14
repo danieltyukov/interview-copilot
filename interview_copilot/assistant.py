@@ -22,6 +22,8 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import urllib.error
+import urllib.request
 from typing import Callable
 
 SYSTEM_RULES = """You are my real-time interview copilot. I am being interviewed in person, \
@@ -254,45 +256,148 @@ class ApiAssistant:
 
 
 # --------------------------------------------------------------------------- #
-# Fallback wrapper
+# Offline backend (local LLM via Ollama)
 # --------------------------------------------------------------------------- #
-class FallbackAssistant:
-    """Try ``primary``; on any failure, signal and re-stream from ``secondary``."""
+class OllamaAssistant:
+    """Answers from a local LLM via Ollama's HTTP API — works with no internet.
 
-    def __init__(self, primary, secondary,
-                 on_fallback: Callable[[str], None] | None = None) -> None:
-        self.primary = primary
-        self.secondary = secondary
-        self.on_fallback = on_fallback
+    Available only when an Ollama server is running locally with the model
+    pulled. ``set_model`` is ignored (the 1/2/3 keys pick Claude models, which
+    don't apply to a local model)."""
+
+    needs_network = False
+
+    def __init__(self, model: str = "llama3.2", host: str = "http://localhost:11434",
+                 timeout: int = 120) -> None:
+        self.model = model
+        self.host = host.rstrip("/")
+        self.timeout = timeout
+
+    def set_model(self, model: str) -> None:  # keep the configured local model
+        pass
+
+    def set_effort(self, effort: str) -> None:
+        pass
+
+    def is_available(self) -> bool:
+        try:
+            with urllib.request.urlopen(f"{self.host}/api/tags", timeout=2) as resp:
+                return resp.status == 200
+        except Exception:
+            return False
+
+    def answer(self, context: str, transcript: str, question: str, note: str = "",
+               on_delta: Callable[[str], None] | None = None) -> str:
+        user = build_user_prompt(context, transcript, question, note)
+        body = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_RULES},
+                {"role": "user", "content": user},
+            ],
+            "stream": True,
+            "options": {"num_predict": 400},
+        }).encode()
+        req = urllib.request.Request(f"{self.host}/api/chat", data=body,
+                                     headers={"content-type": "application/json"})
+        parts: list[str] = []
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                for raw in resp:
+                    line = raw.decode("utf-8").strip()
+                    if not line:
+                        continue
+                    try:
+                        evt = json.loads(line)
+                    except ValueError:
+                        continue
+                    chunk = (evt.get("message") or {}).get("content", "")
+                    if chunk:
+                        parts.append(chunk)
+                        if on_delta:
+                            on_delta("".join(parts))
+                    if evt.get("error"):
+                        raise AssistantError(f"ollama: {evt['error']}")
+        except AssistantError:
+            raise
+        except Exception as exc:
+            raise AssistantError(f"ollama: {type(exc).__name__}: {str(exc)[:200]}") from exc
+        answer = "".join(parts).strip()
+        if not answer:
+            raise AssistantError("local model returned an empty answer")
+        return answer
+
+    def ping(self) -> str:
+        return "PONG" if self.is_available() else ""
+
+
+# --------------------------------------------------------------------------- #
+# Connectivity-aware fallback chain
+# --------------------------------------------------------------------------- #
+class ChainAssistant:
+    """Try backends in order, skipping network ones when offline.
+
+    ``backends`` is a list of ``(name, assistant, needs_network)``. When offline,
+    network backends are skipped entirely (so we don't wait on doomed timeouts)
+    and the local one is used. ``on_switch(failed_name, reason)`` fires each time
+    a backend fails and we move on; ``last_served`` records which one answered.
+    """
+
+    def __init__(self, backends, is_online=None, on_switch=None) -> None:
+        self.backends = backends                 # [(name, assistant, needs_network)]
+        self.is_online = is_online or (lambda: True)
+        self.on_switch = on_switch
+        self.last_served: str | None = None
 
     @property
     def model(self):
-        return self.secondary.model
+        for _, a, _ in self.backends:
+            if getattr(a, "model", None):
+                return a.model
+        return None
 
     def is_available(self) -> bool:
-        return self.primary.is_available() or self.secondary.is_available()
+        return any(a.is_available() for _, a, _ in self.backends)
 
     def set_model(self, model: str) -> None:
-        self.primary.set_model(model)
-        self.secondary.set_model(model)
+        for _, a, _ in self.backends:
+            if hasattr(a, "set_model"):
+                a.set_model(model)
 
     def set_effort(self, effort: str) -> None:
-        for a in (self.primary, self.secondary):
+        for _, a, _ in self.backends:
             if hasattr(a, "set_effort"):
                 a.set_effort(effort)
 
     def answer(self, context: str, transcript: str, question: str, note: str = "",
                on_delta: Callable[[str], None] | None = None) -> str:
-        if self.primary.is_available():
+        online = self.is_online()
+        candidates = [(n, a) for (n, a, net) in self.backends if online or not net]
+        last_err: Exception | None = None
+        tried_any = False
+        for name, a in candidates:
+            if not a.is_available():
+                continue
+            tried_any = True
             try:
-                return self.primary.answer(context, transcript, question, note, on_delta)
+                result = a.answer(context, transcript, question, note, on_delta)
+                self.last_served = name
+                return result
             except AssistantError as exc:
-                if self.on_fallback:
-                    self.on_fallback(str(exc))
-        return self.secondary.answer(context, transcript, question, note, on_delta)
+                last_err = exc
+                if self.on_switch:
+                    self.on_switch(name, str(exc))
+        if not online and not tried_any:
+            raise AssistantError(
+                "Offline and no local model running — install Ollama and pull a model "
+                "(e.g. `ollama pull llama3.2`) to answer with no internet.")
+        raise AssistantError(str(last_err) if last_err else "no answer backend available")
 
     def ping(self) -> str:
-        try:
-            return self.primary.ping()
-        except Exception:
-            return self.secondary.ping()
+        for _, a, _ in self.backends:
+            try:
+                if a.is_available():
+                    return a.ping()
+            except Exception:
+                continue
+        return ""

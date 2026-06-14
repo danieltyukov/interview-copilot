@@ -261,6 +261,10 @@ class FallbackSttBackend(Backend):
         except Exception as exc:
             self._switch_to_local(f"could not connect ({exc})")
 
+    def force_local(self, reason: str) -> None:
+        """Switch to local now (e.g. the connectivity monitor detected offline)."""
+        self._switch_to_local(reason)
+
     def _switch_to_local(self, reason: str) -> None:
         with self._lock:
             if self._finished or self.active == "local":

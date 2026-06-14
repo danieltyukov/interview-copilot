@@ -52,7 +52,8 @@ class CopilotTUI:
         self.me_label: str | None = None
         # Which backend is currently in use (updated live on a mid-session switch).
         self.stt_active = "deepgram" if engine.cfg.stt_backend == "deepgram" else "local"
-        self.answer_active = "api" if engine.answer_mode == "api→cli" else "cli"
+        self.answer_active = engine.answer_primary
+        self.online = engine.online
         self.thinking = False
         self.answer: str | None = None
         self.answer_question: str | None = None
@@ -109,14 +110,19 @@ class CopilotTUI:
                 self._set_status(f"Answer ready ({self.answer_active}) — read it out.", "bold green")
             elif t == "model":
                 self._set_status(f"Answer model → {e['model']}", "bold cyan")
-            elif t == "answer_switch":   # API failed -> using CLI for this answer
-                self.answer = None       # discard any partial API stream; CLI restarts
-                self.answer_active = e.get("backend", "cli")
-                self._set_status(f"⚠ Answers: API unavailable → using CLI ({e.get('reason','')})", "bold yellow")
+            elif t == "answer_switch":   # a backend failed; the chain moves to the next
+                self.answer = None       # discard any partial stream from the failed one
+                self._set_status(f"⚠ Answers: {e.get('failed','?')} failed → trying next backend", "bold yellow")
             elif t == "stt_switch":      # Deepgram dropped -> local Whisper
                 self.stt_active = e.get("backend", "local")
                 self.partial = None
-                self._set_status(f"⚠ Transcription: Deepgram dropped → local Whisper ({e.get('reason','')})", "bold yellow")
+                self._set_status(f"⚠ Transcription: Deepgram → local Whisper ({e.get('reason','')})", "bold yellow")
+            elif t == "connectivity":
+                self.online = e["online"]
+                if self.online:
+                    self._set_status("✓ Back online — cloud backends available again.", "bold green")
+                else:
+                    self._set_status("⚠ Offline — using local Whisper + local LLM.", "bold yellow")
             elif t == "exported":
                 self._set_status(f"Saved transcript → {e['path']}", "bold green")
             elif t == "info":
@@ -139,18 +145,21 @@ class CopilotTUI:
         me = {None: "unset", "A": "Speaker A", "B": "Speaker B"}.get(self.me_label, str(self.me_label))
         cfg = self.engine.cfg
 
+        net = "[green]● online[/]" if self.online else "[bold red]● OFFLINE[/]"
+
         stt_pref = "deepgram" if cfg.stt_backend == "deepgram" else "local"
         stt_disp = {"deepgram": f"deepgram:{cfg.deepgram_model}",
                     "local": f"whisper:{cfg.whisper_model}"}[self.stt_active]
         stt_tag = stt_disp if self.stt_active == stt_pref else f"[bold yellow]{stt_disp} (fallback)[/]"
 
-        ans_pref = "api" if self.engine.answer_mode == "api→cli" else "cli"
-        ans_disp = f"{cfg.answer_model}·{self.answer_active}"
+        ans_pref = self.engine.answer_primary
+        ans_model = cfg.ollama_model if self.answer_active == "local" else cfg.answer_model
+        ans_disp = f"{ans_model}·{self.answer_active}"
         ans_tag = ans_disp if self.answer_active == ans_pref else f"[bold yellow]{ans_disp} (fallback)[/]"
 
         head = Text.from_markup(
-            f"{badge}[/]   ⏱ {elapsed}   "
-            f"🎙 {stt_tag}   🧠 {ans_tag}   🙋 me={me}"
+            f"{badge}[/]  {net}  ⏱ {elapsed}  "
+            f"🎙 {stt_tag}  🧠 {ans_tag}  🙋 me={me}"
         )
         return Panel(head, title="Interview Copilot", border_style="blue")
 

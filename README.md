@@ -25,10 +25,9 @@ git clone <your-repo-url> && cd inperson-interview-copilot
 ./install.sh           # creates a venv + installs `interview-copilot` on your PATH
 ```
 
-> **No keys required — it works fully offline.** With neither key set, the app
-> runs entirely on-device: **local Whisper** for transcription and the **`claude`
-> CLI** for answers. Keys just make it faster, and each one **falls back to its
-> local counterpart automatically** (even mid-interview) if it's missing or fails.
+> **No keys required.** Without them the app still runs — local Whisper for
+> transcription and the `claude` CLI for answers. Keys just make it faster, and
+> each **falls back automatically** (even mid-interview) if it's missing or fails.
 
 Optionally add keys to `~/.config/interview-copilot/config.env` (chmod 600) for speed:
 
@@ -36,6 +35,28 @@ Optionally add keys to `~/.config/interview-copilot/config.env` (chmod 600) for 
 DEEPGRAM_API_KEY=...    # faster streaming transcription.  Absent → local Whisper.
 ANTHROPIC_API_KEY=...   # faster answers (~1s).            Absent / on failure → claude CLI.
 ```
+
+### Works with no WiFi 📡❌
+
+A live **`● online` / `● OFFLINE`** marker sits in the header and the app
+**auto-switches mid-session** if the network drops:
+
+| | Online | Offline (no WiFi) |
+|---|---|---|
+| **Transcription** | Deepgram (or local Whisper) | **local Whisper** — works out of the box |
+| **Answers** | Claude API → CLI | **local LLM** via Ollama |
+
+Transcription is fully offline already. For **offline answers**, install a local
+LLM once (while you still have internet):
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh   # one-time
+ollama pull llama3.2                            # ~2 GB, any model works
+```
+
+Then if WiFi drops mid-interview, transcription and answers both switch to local
+automatically and the header flips to `● OFFLINE`. `interview-copilot --self-test`
+shows whether offline answers are ready.
 
 Verify it all:
 
@@ -62,7 +83,8 @@ interview-copilot
 ## Features
 
 - 🎙 **Near-real-time transcription** — Deepgram streaming, **auto-falls back to local Whisper** if it drops.
-- 🧠 **Answers grounded in your repo** — reads the directory's README/manifests/tree; Claude **API → CLI** fallback.
+- 🧠 **Answers grounded in your repo** — reads the directory's README/manifests/tree; Claude **API → CLI → local LLM** fallback.
+- 📡 **Works offline** — auto-switches to local Whisper + local LLM when WiFi drops, with a live `● online / ● OFFLINE` marker.
 - 🪪 **Best-effort speaker separation** (you vs. interviewer), or plain transcript.
 - 🔀 **Resilient & visible** — the header always shows the live backend and tags any mid-session `(fallback)`.
 - 📝 Saves a Markdown transcript on stop · 100% keypress-driven · grows/scrolls long answers.
@@ -80,7 +102,8 @@ interview-copilot
        │
        ▼
   Claude ── API (fast)
-       │     └─ no key / failure → claude CLI
+       │     ├─ no key / failure → claude CLI
+       │     └─ offline         → local LLM (Ollama)
        ▼
   first-person answer ─▶ you read it aloud
        │

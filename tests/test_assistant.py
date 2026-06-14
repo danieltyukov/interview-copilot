@@ -1,7 +1,7 @@
 import pytest
 
 from interview_copilot.assistant import (ApiAssistant, Assistant, AssistantError,
-                                         CliAssistant, FallbackAssistant)
+                                         ChainAssistant, CliAssistant, OllamaAssistant)
 
 
 def test_build_user_prompt_contains_parts():
@@ -77,7 +77,7 @@ def test_missing_binary_raises():
         a.answer("c", "t", "q")
 
 
-# -- API + fallback --------------------------------------------------------
+# -- chain (API -> CLI -> local) + offline routing -------------------------
 class _FakeBackend:
     def __init__(self, name, available=True, raise_err=False):
         self.name = name
@@ -101,33 +101,75 @@ class _FakeBackend:
         return self.name.upper()
 
 
-def test_fallback_uses_primary_when_ok():
-    p, s = _FakeBackend("primary"), _FakeBackend("secondary")
-    assert FallbackAssistant(p, s).answer("c", "t", "q") == "PRIMARY"
-    assert p.calls == 1 and s.calls == 0
+def _chain(api, cli, local, online=True, on_switch=None):
+    return ChainAssistant(
+        [("api", api, True), ("cli", cli, True), ("local", local, False)],
+        is_online=lambda: online, on_switch=on_switch)
 
 
-def test_fallback_to_secondary_on_error():
+def test_chain_uses_api_when_online_and_ok():
+    api, cli, local = _FakeBackend("api"), _FakeBackend("cli"), _FakeBackend("local")
+    ch = _chain(api, cli, local, online=True)
+    assert ch.answer("c", "t", "q") == "API"
+    assert ch.last_served == "api"
+    assert api.calls == 1 and cli.calls == 0 and local.calls == 0
+
+
+def test_chain_falls_through_to_cli_on_error():
     seen = []
-    p = _FakeBackend("primary", raise_err=True)
-    s = _FakeBackend("secondary")
-    out = FallbackAssistant(p, s, on_fallback=seen.append).answer("c", "t", "q")
-    assert out == "SECONDARY"
-    assert s.calls == 1
-    assert seen and "boom" in seen[0]
+    api = _FakeBackend("api", raise_err=True)
+    cli, local = _FakeBackend("cli"), _FakeBackend("local")
+    ch = _chain(api, cli, local, online=True, on_switch=lambda n, r: seen.append(n))
+    assert ch.answer("c", "t", "q") == "CLI"
+    assert ch.last_served == "cli"
+    assert seen == ["api"]                       # api failed, moved on
 
 
-def test_fallback_skips_unavailable_primary():
-    p = _FakeBackend("primary", available=False)
-    s = _FakeBackend("secondary")
-    assert FallbackAssistant(p, s).answer("c", "t", "q") == "SECONDARY"
-    assert p.calls == 0 and s.calls == 1
+def test_chain_offline_skips_network_uses_local():
+    api, cli, local = _FakeBackend("api"), _FakeBackend("cli"), _FakeBackend("local")
+    ch = _chain(api, cli, local, online=False)   # OFFLINE
+    assert ch.answer("c", "t", "q") == "LOCAL"
+    assert ch.last_served == "local"
+    assert api.calls == 0 and cli.calls == 0      # network backends skipped entirely
 
 
-def test_fallback_set_model_propagates():
-    p, s = _FakeBackend("primary"), _FakeBackend("secondary")
-    FallbackAssistant(p, s).set_model("haiku")
-    assert p.model == "haiku" and s.model == "haiku"
+def test_chain_offline_without_local_raises():
+    api, cli = _FakeBackend("api"), _FakeBackend("cli")
+    ch = ChainAssistant([("api", api, True), ("cli", cli, True)], is_online=lambda: False)
+    with pytest.raises(AssistantError) as exc:
+        ch.answer("c", "t", "q")
+    assert "offline" in str(exc.value).lower()
+
+
+def test_chain_set_model_propagates():
+    api, cli, local = _FakeBackend("api"), _FakeBackend("cli"), _FakeBackend("local")
+    _chain(api, cli, local).set_model("haiku")
+    assert api.model == "haiku" and cli.model == "haiku"
+
+
+def test_ollama_set_model_is_noop():
+    o = OllamaAssistant(model="llama3.2")
+    o.set_model("haiku")          # 1/2/3 picks Claude models; local keeps its own
+    assert o.model == "llama3.2"
+
+
+def test_ollama_parses_streamed_chat(monkeypatch):
+    import io, json as _json
+    o = OllamaAssistant(model="llama3.2")
+    lines = [
+        _json.dumps({"message": {"content": "Hello"}, "done": False}),
+        _json.dumps({"message": {"content": " world"}, "done": False}),
+        _json.dumps({"message": {"content": ""}, "done": True}),
+    ]
+    class _Resp(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr("urllib.request.urlopen",
+                        lambda req, timeout=None: _Resp(("\n".join(lines)).encode()))
+    seen = []
+    out = o.answer("c", "t", "q", on_delta=seen.append)
+    assert out == "Hello world"
+    assert seen[-1] == "Hello world"
 
 
 def test_api_model_id_mapping():

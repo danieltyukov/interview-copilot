@@ -61,6 +61,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--answer-backend", choices=["auto", "api", "cli"], default="auto",
                    help="Answer generation: auto (API if ANTHROPIC_API_KEY set, else CLI), "
                         "with automatic CLI fallback whenever the API fails.")
+    p.add_argument("--ollama-model", default="llama3.2",
+                   help="Local LLM (via Ollama) for offline answers (default: llama3.2).")
+    p.add_argument("--ollama-host", default="http://localhost:11434",
+                   help="Ollama server URL (default: http://localhost:11434).")
     p.add_argument("--no-diarize", action="store_true",
                    help="Disable speaker separation; transcribe everything plainly.")
     p.add_argument("--language", default="en",
@@ -99,25 +103,39 @@ def _make_config(args) -> EngineConfig:
         answer_effort=args.effort,
         answer_backend=args.answer_backend,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        ollama_model=args.ollama_model,
+        ollama_host=args.ollama_host,
         diarize=not args.no_diarize,
         language=args.language,
     )
 
 
 def _self_test(args) -> int:
-    from .assistant import ApiAssistant, AssistantError, CliAssistant
+    from .assistant import ApiAssistant, AssistantError, CliAssistant, OllamaAssistant
     from .context import gather_context
+    from .net import check_online
 
     ok = True
     backend, key = _resolve_backend(args)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     answer_mode = "api→cli" if (args.answer_backend in ("auto", "api") and api_key) else "cli"
     print("Interview Copilot self-test\n" + "-" * 30)
-    print(f"STT backend: {backend}    Answer backend: {answer_mode}")
+    print(f"STT backend: {backend}    Answer backend: {answer_mode}→local")
+
+    online = check_online()
+    print(f"[INFO] connectivity: {'● online' if online else '● OFFLINE'}")
 
     have_ffmpeg = shutil.which("ffmpeg") is not None
     print(f"[{'PASS' if have_ffmpeg else 'FAIL'}] ffmpeg on PATH")
     ok &= have_ffmpeg
+
+    # Offline path: local Whisper (transcription) + local LLM (answers).
+    ollama = OllamaAssistant(model=args.ollama_model, host=args.ollama_host)
+    if ollama.is_available():
+        print(f"[PASS] offline answers ready — Ollama at {args.ollama_host} ({args.ollama_model})")
+    else:
+        print(f"[INFO] offline answers OFF — no Ollama at {args.ollama_host}. "
+              f"Install Ollama + `ollama pull {args.ollama_model}` for no-WiFi answers.")
 
     # Answer path: API (if configured) is primary; the CLI is the required fallback.
     if answer_mode == "api→cli":

@@ -17,11 +17,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .assistant import (ApiAssistant, AssistantError, CliAssistant, FallbackAssistant)
+from .assistant import (ApiAssistant, AssistantError, ChainAssistant, CliAssistant,
+                        OllamaAssistant)
 from .audio import UtteranceSegmenter
 from .backends import Backend, DeepgramBackend, FallbackSttBackend, LocalBackend
 from .context import gather_context
 from .diarize import Diarizer
+from .net import ConnectivityMonitor
 from .session import Session
 from .transcribe import Transcriber
 
@@ -41,6 +43,8 @@ class EngineConfig:
     answer_effort: str = "low"
     answer_backend: str = "auto"           # "auto" | "api" | "cli"
     anthropic_api_key: str | None = None
+    ollama_model: str = "llama3.2"         # local LLM for offline answers
+    ollama_host: str = "http://localhost:11434"
     diarize: bool = True
     language: str | None = "en"
     context_budget: int = 9000
@@ -54,12 +58,12 @@ class CopilotEngine:
         self.cfg = config
         self.on_event = on_event or (lambda e: None)
         self.session = Session()
-        self.assistant, self.answer_mode = self._build_assistant(config)
+        self.monitor = ConnectivityMonitor(on_change=self._on_connectivity_change)
+        self.assistant, self.answer_primary = self._build_assistant(config)
         self.context: str = ""
         self.backend: Backend | None = None
         self._transcriber: Transcriber | None = None  # lazily built for local
         self._transcriber_lock = threading.Lock()
-        self._answer_fell_back = False
         self.stt_mode = self._stt_mode_label(config)
         self._start_mono: float | None = None
         self._stop = threading.Event()
@@ -73,20 +77,32 @@ class CopilotEngine:
 
     # -- assistant construction -------------------------------------------
     def _build_assistant(self, config: EngineConfig):
-        """Build the answer assistant. API-first with CLI fallback when a key
-        is available; pure CLI otherwise. Returns (assistant, mode_label)."""
-        cli = CliAssistant(model=config.answer_model, effort=config.answer_effort)
+        """Build the connectivity-aware answer chain: API → CLI → local LLM.
+        The local backend keeps answers working with no internet (if Ollama is
+        installed). Returns (chain, primary_label)."""
         key = config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
         use_api = config.answer_backend in ("auto", "api") and bool(key)
+        backends = []
         if use_api:
-            api = ApiAssistant(api_key=key, model=config.answer_model)
-            assistant = FallbackAssistant(api, cli, on_fallback=self._on_answer_fallback)
-            return assistant, "api→cli"
-        return cli, "cli"
+            backends.append(("api", ApiAssistant(api_key=key, model=config.answer_model), True))
+        backends.append(
+            ("cli", CliAssistant(model=config.answer_model, effort=config.answer_effort), True))
+        backends.append(
+            ("local", OllamaAssistant(model=config.ollama_model, host=config.ollama_host), False))
+        chain = ChainAssistant(
+            backends, is_online=self.monitor.is_online,
+            on_switch=lambda name, reason: self._emit("answer_switch", failed=name, reason=reason))
+        return chain, ("api" if use_api else "cli")
 
-    def _on_answer_fallback(self, reason: str) -> None:
-        self._answer_fell_back = True
-        self._emit("answer_switch", backend="cli", reason=reason)
+    @property
+    def online(self) -> bool:
+        return self.monitor.is_online()
+
+    def _on_connectivity_change(self, online: bool) -> None:
+        self._emit("connectivity", online=online)
+        if not online and isinstance(self.backend, FallbackSttBackend):
+            # WiFi dropped mid-session — switch transcription to local now.
+            self.backend.force_local("network offline")
 
     # -- local STT (lazy, pre-warmed for the fallback) --------------------
     def _ensure_transcriber(self) -> Transcriber:
@@ -116,6 +132,10 @@ class CopilotEngine:
     def _make_backend(self) -> Backend:
         if self.cfg.stt_backend != "deepgram":
             return self._make_local_backend()
+        if not self.online and self.cfg.stt_fallback:
+            # Offline: don't waste time on a doomed Deepgram connect.
+            self._emit("stt_switch", backend="local", reason="offline at start")
+            return self._make_local_backend()
         primary = DeepgramBackend(
             api_key=self.cfg.deepgram_api_key or "",
             model=self.cfg.deepgram_model,
@@ -139,6 +159,8 @@ class CopilotEngine:
     def prepare(self) -> None:
         self._emit("info", msg=f"Reading context of {self.cfg.root} ...")
         self.context = gather_context(self.cfg.root, self.cfg.context_budget)
+        self.monitor.start()
+        self._emit("connectivity", online=self.online)
         if self.cfg.stt_backend == "local":
             self._emit("info", msg=f"Loading Whisper '{self.cfg.whisper_model}' ...")
             self._ensure_transcriber()
@@ -256,6 +278,7 @@ class CopilotEngine:
 
     def stop(self) -> None:
         self._stop.set()
+        self.monitor.stop()
 
     # -- help --------------------------------------------------------------
     def request_help(self, note: str = "") -> None:
@@ -271,7 +294,6 @@ class CopilotEngine:
             self._emit("info", msg="No question captured yet — start the interview first.")
             return
         self._emit("help_started", question=question.text, note=note)
-        self._answer_fell_back = False  # set by _on_answer_fallback if the API fails
         try:
             answer = self.assistant.answer(
                 self.context, transcript, question.text, note=note,
@@ -279,7 +301,7 @@ class CopilotEngine:
         except AssistantError as exc:
             self._emit("error", msg=f"assistant: {exc}")
             return
-        served = "cli" if (self.answer_mode == "cli" or self._answer_fell_back) else "api"
+        served = getattr(self.assistant, "last_served", None) or self.answer_primary
         with self._lock:
             self.session.add_assist(self._elapsed(), question.text, answer)
         self._emit("help", question=question.text, answer=answer, served=served)

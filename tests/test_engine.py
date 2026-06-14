@@ -103,20 +103,35 @@ def test_cycle_answer_model(tmp_path):
     assert any(e["type"] == "model" for e in events)
 
 
-def test_api_with_fallback_when_key_present(tmp_path):
-    from interview_copilot.assistant import FallbackAssistant
+def test_api_primary_when_key_present(tmp_path):
+    from interview_copilot.assistant import ChainAssistant
     cfg = EngineConfig(root=tmp_path, anthropic_api_key="sk-test")
     eng = CopilotEngine(cfg)
-    assert eng.answer_mode == "api→cli"
-    assert isinstance(eng.assistant, FallbackAssistant)
+    assert eng.answer_primary == "api"
+    assert isinstance(eng.assistant, ChainAssistant)
+    # chain always ends with the offline local backend
+    assert [n for n, _, _ in eng.assistant.backends] == ["api", "cli", "local"]
 
 
-def test_cli_only_without_key(tmp_path, monkeypatch):
-    from interview_copilot.assistant import CliAssistant
+def test_cli_primary_without_key(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     eng = CopilotEngine(EngineConfig(root=tmp_path))
-    assert eng.answer_mode == "cli"
-    assert isinstance(eng.assistant, CliAssistant)
+    assert eng.answer_primary == "cli"
+    assert [n for n, _, _ in eng.assistant.backends] == ["cli", "local"]
+
+
+def test_offline_routes_stt_and_answers_local(tmp_path, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from interview_copilot.backends import LocalBackend
+    cfg = EngineConfig(root=tmp_path, stt_backend="deepgram", deepgram_api_key="x")
+    events = []
+    eng = CopilotEngine(cfg, on_event=events.append)
+    eng._transcriber = FakeTranscriber("x")           # avoid loading real Whisper
+    monkeypatch.setattr(eng.monitor, "_online", False)  # simulate OFFLINE
+    # STT: offline -> local backend, not Deepgram
+    assert isinstance(eng._make_backend(), LocalBackend)
+    # Answers: offline -> chain skips network, would use local (no api/cli attempt)
+    assert eng.online is False
 
 
 def test_export_falls_back_when_launch_dir_missing(tmp_path, monkeypatch):
