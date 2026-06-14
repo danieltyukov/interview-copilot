@@ -150,11 +150,14 @@ async function start() {
     const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
     attach("me", mic, false);
     micState.ok = true;
+    $("micBtn").classList.add("hidden");
   } catch (e) {
+    // Chrome won't show the mic prompt in a side panel, so point at the helper.
     micState.msg = e.name === "NotAllowedError"
-      ? "permission denied — click the 🎤/site icon in the address bar and Allow"
+      ? "press “🎤 Fix microphone access” below"
       : (e.message || String(e));
-    status("Mic off (" + micState.msg + "). The call tab is still transcribed.", true);
+    $("micBtn").classList.remove("hidden");
+    status("Mic off — " + micState.msg + ". The call tab is still transcribed.", true);
   }
   render();
 
@@ -253,12 +256,19 @@ function status(msg, isErr) {
   el.style.color = isErr ? "var(--red)" : "var(--muted)";
 }
 
+// Open the helper page in a real tab — the side panel can't raise the mic prompt.
+function openMicPermission() {
+  chrome.tabs.create({ url: chrome.runtime.getURL("mic.html") });
+  status("Granted the mic in that tab? Come back and press Stop → Start.");
+}
+
 // ---- wire up ----
 $("ackBox").addEventListener("change", (e) => ($("ackBtn").disabled = !e.target.checked));
 $("ackBtn").addEventListener("click", () => $("gate").classList.add("hidden"));
 $("startBtn").addEventListener("click", start);
 $("stopBtn").addEventListener("click", stop);
 $("helpBtn").addEventListener("click", help);
+$("micBtn").addEventListener("click", openMicPermission);
 $("saveBtn").addEventListener("click", saveSettings);
 $("context").addEventListener("change", saveSettings);
 

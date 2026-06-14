@@ -47,10 +47,13 @@ recording with no text yet, the panel now tells you exactly what it's hearing:
 - **`them … waiting for the call tab`** — the meeting tab isn't producing audio.
   Make sure the **call tab** (the one you focused when pressing Start) actually
   has sound playing. If you're alone in the call, there's nothing to transcribe.
-- **`you ✗ mic off — permission denied`** — Chrome blocked the microphone for the
-  side panel. Click the **site/🎤 icon in the address bar → Allow**, or reset it
-  under `chrome://settings/content/microphone`, then press Stop → Start again.
-  (Your own voice needs the mic; the interviewer's voice comes from the tab.)
+- **`you ✗ mic off`** — Chrome **does not show the mic prompt inside a side
+  panel**, so the request is auto-denied and there's no 🎤 icon to click. Press
+  the **🎤 Fix microphone access** button that appears under Start/Stop: it opens
+  a normal tab where the prompt *does* render. Click **Allow** there, close the
+  tab, then press **Stop → Start**. The grant is keyed to the extension, so the
+  side panel inherits it. (Your own voice needs the mic; the interviewer's voice
+  comes from the call tab and works without it.)
 
 **Definitive 30-second self-test (no call needed):** open any tab playing speech
 — e.g. a talking **YouTube** video — focus that tab, open the side panel, press
