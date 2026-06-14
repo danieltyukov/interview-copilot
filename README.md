@@ -89,6 +89,14 @@ interview-copilot
 - 🔀 **Resilient & visible** — the header always shows the live backend and tags any mid-session `(fallback)`.
 - 📝 Saves a Markdown transcript on stop · 100% keypress-driven · grows/scrolls long answers.
 
+## Browser version (Google Meet / Teams)
+
+A **visible** Chrome side-panel build lives in [`extension/`](extension/) — it
+transcribes a Meet/Teams call and drafts talking points in a panel, using the
+same Deepgram + Claude stack. It's a normal, on-screen aid (no stealth /
+screen-share-hiding) — use it where you have consent. See
+[`extension/README.md`](extension/README.md) to load it.
+
 ## How it works
 
 ```

@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <!-- Consent / disclosure gate -->
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <h2>🦜 Meeting Copilot</h2>
+      <p>This transcribes the <b>active meeting tab's audio</b> and drafts talking points.</p>
+      <ul>
+        <li>Only use it where you have <b>consent to transcribe</b> the call.</li>
+        <li>It's a <b>visible</b> aid — it is <b>not</b> hidden from screen sharing. Disclose it where required.</li>
+        <li>Audio is sent to Deepgram; prompts go to the Anthropic API (your keys).</li>
+      </ul>
+      <label class="ack"><input type="checkbox" id="ackBox"> I understand and have consent to use this.</label>
+      <button id="ackBtn" disabled>Continue</button>
+    </div>
+  </div>
+
+  <header>
+    <div class="row">
+      <span id="dot" class="dot idle"></span>
+      <span id="state">idle</span>
+      <span class="grow"></span>
+      <button id="meBtn" class="chip" title="Mark which speaker is you">🙋 me: unset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="pane">
+      <div class="pane-title">Live transcript</div>
+      <div id="transcript" class="transcript"><div class="muted">Press Start, then talk — the call's audio is transcribed here.</div></div>
+    </section>
+
+    <section class="pane answer">
+      <div class="pane-title">✋ Talking points — read this</div>
+      <div id="answer" class="answer"><div class="muted">Press “Help” for context-grounded points on the latest question.</div></div>
+    </section>
+
+    <section class="controls">
+      <input id="note" type="text" placeholder="optional: steer the next answer (e.g. 'keep it to 2 sentences')">
+      <div class="btns">
+        <button id="startBtn">▶ Start</button>
+        <button id="stopBtn" disabled>■ Stop</button>
+        <button id="helpBtn" class="primary">✋ Help</button>
+      </div>
+    </section>
+
+    <details class="ctx">
+      <summary>Your context (pasted) — used to ground answers</summary>
+      <textarea id="context" rows="5" placeholder="Paste anything useful: your résumé, the project/repo summary, the job description, key talking points…"></textarea>
+    </details>
+
+    <details class="settings">
+      <summary>⚙ Settings</summary>
+      <label>Deepgram API key <input id="deepgramKey" type="password" placeholder="dg_..."></label>
+      <label>Anthropic API key <input id="anthropicKey" type="password" placeholder="sk-ant-..."></label>
+      <label>Answer model
+        <select id="model">
+          <option value="haiku">haiku (fastest)</option>
+          <option value="sonnet" selected>sonnet</option>
+          <option value="opus">opus (best)</option>
+        </select>
+      </label>
+      <label>Language <input id="language" type="text" value="en" size="6"></label>
+      <label class="inline"><input id="diarize" type="checkbox" checked> Separate speakers</label>
+      <button id="saveBtn">Save settings</button>
+      <div id="saveMsg" class="muted"></div>
+    </details>
+  </main>
+
+  <footer id="status" class="muted">Visible aid · not hidden from screen share · use with consent.</footer>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
