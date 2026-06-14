@@ -13,53 +13,53 @@
   <circle cx="63" cy="38" r="7.5" fill="#ffbd2e"/>
   <circle cx="88" cy="38" r="7.5" fill="#27c93f"/>
 
-  <!-- ===== parrot mascot (front-facing) ===== -->
-  <g transform="translate(190,216)">
-    <!-- tail feathers -->
-    <path d="M-26 58 q -22 72 -64 98 q -6 -58 36 -114 z" fill="#f59e0b"/>
-    <path d="M3 64 q 0 80 -22 116 q -20 -56 -6 -124 z" fill="#fbbf24"/>
-    <path d="M32 58 q 26 66 8 112 q -26 -52 -36 -106 z" fill="#0f766e"/>
+  <!-- ===== parrot mascot (scaled to sit inside the frame) ===== -->
+  <g transform="translate(178,196) scale(0.82)">
+    <!-- tail feathers (short, tucked) -->
+    <path d="M-22 56 q -16 46 -46 64 q -6 -42 28 -82 z" fill="#f59e0b"/>
+    <path d="M3 60 q 2 46 -16 70 q -14 -38 -2 -78 z" fill="#fbbf24"/>
+    <path d="M26 56 q 20 42 6 78 q -20 -38 -28 -74 z" fill="#0f766e"/>
     <!-- feet -->
-    <path d="M-22 112 l0 20 M-33 132 l22 0" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
-    <path d="M26 112 l0 20 M15 132 l22 0" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+    <path d="M-22 110 l0 18 M-33 128 l22 0" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+    <path d="M26 110 l0 18 M15 128 l22 0" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
     <!-- body -->
-    <ellipse cx="0" cy="32" rx="82" ry="92" fill="url(#bird)"/>
-    <ellipse cx="0" cy="50" rx="50" ry="62" fill="#bbf7d0"/>
+    <ellipse cx="0" cy="30" rx="80" ry="88" fill="url(#bird)"/>
+    <ellipse cx="0" cy="48" rx="48" ry="58" fill="#bbf7d0"/>
     <!-- wings -->
-    <path d="M-80 -2 q -24 48 -2 96 q 28 -10 32 -60 z" fill="#0f766e"/>
-    <path d="M80 -2 q 24 48 2 96 q -28 -10 -32 -60 z" fill="#0f766e"/>
+    <path d="M-78 -2 q -22 46 -2 90 q 26 -10 30 -56 z" fill="#0f766e"/>
+    <path d="M78 -2 q 22 46 2 90 q -26 -10 -30 -56 z" fill="#0f766e"/>
     <!-- crest -->
-    <path d="M-24 -130 q -10 -32 8 -46 q 10 18 4 48 z" fill="#fbbf24"/>
-    <path d="M2 -138 q -2 -36 16 -48 q 6 26 -4 52 z" fill="#f59e0b"/>
-    <path d="M26 -130 q 12 -30 30 -32 q -2 26 -18 44 z" fill="#fbbf24"/>
+    <path d="M-22 -126 q -10 -30 8 -44 q 10 18 4 46 z" fill="#fbbf24"/>
+    <path d="M2 -134 q -2 -34 16 -46 q 6 24 -4 50 z" fill="#f59e0b"/>
+    <path d="M24 -126 q 12 -28 30 -30 q -2 24 -18 42 z" fill="#fbbf24"/>
     <!-- head -->
-    <circle cx="0" cy="-64" r="78" fill="url(#bird)"/>
-    <!-- eyes -->
-    <circle cx="-34" cy="-70" r="26" fill="#ffffff"/>
-    <circle cx="34" cy="-70" r="26" fill="#ffffff"/>
-    <circle cx="-28" cy="-68" r="14" fill="#0b1220"/>
-    <circle cx="40" cy="-68" r="14" fill="#0b1220"/>
-    <circle cx="-23" cy="-73" r="5" fill="#ffffff"/>
-    <circle cx="45" cy="-73" r="5" fill="#ffffff"/>
+    <circle cx="0" cy="-62" r="76" fill="url(#bird)"/>
+    <!-- eyes (looking forward, slight converge) -->
+    <circle cx="-33" cy="-68" r="26" fill="#ffffff"/>
+    <circle cx="33" cy="-68" r="26" fill="#ffffff"/>
+    <circle cx="-29" cy="-64" r="14" fill="#0b1220"/>
+    <circle cx="29" cy="-64" r="14" fill="#0b1220"/>
+    <circle cx="-35" cy="-70" r="5" fill="#ffffff"/>
+    <circle cx="23" cy="-70" r="5" fill="#ffffff"/>
     <!-- beak (hooked) -->
-    <path d="M0 -52 q 28 0 26 24 q -2 24 -26 32 q -24 -8 -26 -32 q -2 -24 26 -24 z" fill="#fb923c"/>
-    <path d="M-14 -34 q 14 12 28 0 q -4 16 -14 18 q -10 -2 -14 -18 z" fill="#ea580c"/>
-    <circle cx="-9" cy="-46" r="2.4" fill="#9a3412"/>
-    <circle cx="9" cy="-46" r="2.4" fill="#9a3412"/>
-    <!-- headset -->
-    <path d="M-76 -66 q 76 -92 152 0" fill="none" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
-    <circle cx="-76" cy="-54" r="19" fill="#cbd5e1"/><circle cx="-76" cy="-54" r="9.5" fill="#475569"/>
-    <circle cx="76" cy="-54" r="19" fill="#cbd5e1"/><circle cx="76" cy="-54" r="9.5" fill="#475569"/>
-    <!-- mic boom + capsule near beak -->
-    <path d="M-76 -38 q -30 40 30 30" fill="none" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>
-    <ellipse cx="-44" cy="-12" rx="12" ry="9" fill="#475569" transform="rotate(24 -44 -12)"/>
+    <path d="M0 -50 q 27 0 25 24 q -2 23 -25 31 q -23 -8 -25 -31 q -2 -24 25 -24 z" fill="#fb923c"/>
+    <path d="M-14 -32 q 14 12 28 0 q -4 16 -14 18 q -10 -2 -14 -18 z" fill="#ea580c"/>
+    <circle cx="-9" cy="-44" r="2.4" fill="#9a3412"/>
+    <circle cx="9" cy="-44" r="2.4" fill="#9a3412"/>
+    <!-- headset (compact ear cups) -->
+    <path d="M-74 -64 q 74 -90 148 0" fill="none" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="-74" cy="-52" r="15" fill="#cbd5e1"/><circle cx="-74" cy="-52" r="7.5" fill="#475569"/>
+    <circle cx="74" cy="-52" r="15" fill="#cbd5e1"/><circle cx="74" cy="-52" r="7.5" fill="#475569"/>
+    <!-- mic boom + capsule -->
+    <path d="M-74 -38 q -28 38 26 30" fill="none" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>
+    <ellipse cx="-44" cy="-12" rx="11" ry="8" fill="#475569" transform="rotate(22 -44 -12)"/>
   </g>
 
   <!-- speech bubble -->
-  <g transform="translate(326,52)">
+  <g transform="translate(322,52)">
     <rect x="0" y="0" width="262" height="72" rx="16" fill="#1f2937" stroke="#34d399" stroke-width="2.5"/>
-    <path d="M28 72 l -16 30 l 40 -30 z" fill="#1f2937"/>
-    <path d="M28 72 l -16 30 l 40 -30" fill="none" stroke="#34d399" stroke-width="2.5"/>
+    <path d="M26 72 l -18 30 l 42 -30 z" fill="#1f2937"/>
+    <path d="M26 72 l -18 30 l 42 -30" fill="none" stroke="#34d399" stroke-width="2.5"/>
     <text x="22" y="33" font-family="DejaVu Sans Mono, monospace" font-size="19" fill="#a7f3d0">psst&#8230; press</text>
     <text x="22" y="57" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="bold" fill="#fbbf24">h &#8212; i got you</text>
   </g>
