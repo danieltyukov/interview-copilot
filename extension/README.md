@@ -29,21 +29,25 @@ required (interview accommodations, etc.).
 
 1. Open your Meet/Teams call in a tab and **focus that tab**.
 2. Click the extension icon → the side panel opens; accept the consent notice.
-3. Press **▶ Start** — it captures *that tab's* audio and the transcript fills in
-   live. (You still hear the call normally.)
-4. Press **✋ Help** any time → it drafts a first-person answer to the latest
-   question from the other side. Use **🙋 me** to mark which speaker is you so it
-   picks the right "latest question."
-5. **■ Stop** when done.
+3. Press **▶ Start**. The first time, Chrome asks for **microphone** access (grant
+   it). It then captures two sources and the transcript fills in live (you still
+   hear the call normally).
+4. **Speakers are detected automatically** — your **mic = Me**, the **call's
+   audio = Interviewer**. No manual marking. The `you` / `them` dots in the
+   header light up when each side is being heard, so you can confirm capture.
+5. Press **✋ Help** any time → it drafts a first-person answer to the
+   interviewer's latest question.
+6. **■ Stop** when done.
 
 ## How it works
 
 ```
-meeting tab audio ─(tabCapture)→ offscreen doc ─16k PCM→ Deepgram (live transcript)
+  your mic ──────────────────→ Deepgram ─→ "Me"          ┐
+  meeting tab (tabCapture) ───→ Deepgram ─→ "Interviewer" ┘──→ live transcript
                                                                   │
-        your pasted context  +  transcript  +  latest question ───┼→ Anthropic API
+   your context + transcript + the interviewer's question ────────┼─→ Anthropic API
                                                                   ↓
-                                              talking points in the side panel
+                                            talking points in the side panel
 ```
 
 - Cloud-only by nature (a browser can't run local Whisper / a local LLM the way
@@ -57,6 +61,7 @@ meeting tab audio ─(tabCapture)→ offscreen doc ─16k PCM→ Deepgram (live 
 - **Not invisible to screen share** — by design. If you share your screen, this
   panel is part of your screen. The honest path for a real need (e.g. anxiety,
   accessibility) is disclosure / an accommodation, not concealment.
-- Captures **tab** audio (the remote participants). It does not transcribe your
-  own mic unless your voice is echoed back into the tab.
+- Captures **two sources**: your microphone (→ "Me") and the meeting tab's audio
+  (→ "Interviewer"). Speaker attribution is by source, which is exact — no
+  diarization guessing or manual marking. The first Start needs mic permission.
 - Personal-use tool: keys live client-side; there's no server.

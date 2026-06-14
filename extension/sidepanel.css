@@ -17,6 +17,10 @@ header { padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .dot.stopped { background: #6e7681; }
 .chip { background: var(--panel); color: var(--text); border: 1px solid var(--border);
   border-radius: 7px; padding: 3px 8px; cursor: pointer; font: inherit; }
+.lvl { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); margin-left: 10px; }
+.lvldot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; transition: background .15s; }
+.lvldot.off { background: #6e7681; }
+.lvldot.on { background: var(--teal); box-shadow: 0 0 0 3px rgba(52,211,153,.25); }
 main { flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 .pane { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); padding: 8px 10px; }
 .pane.answer { border-color: #1f6f53; }

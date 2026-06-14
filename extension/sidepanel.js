@@ -1,5 +1,7 @@
-// Side-panel UI: drives capture (via background/offscreen), renders the live
-// transcript, and drafts talking points from the Anthropic API. Visible by design.
+// Side-panel UI. Two transcription sources, labelled automatically:
+//   • your microphone  -> "Me"          (captured here in the side panel)
+//   • the meeting tab  -> "Interviewer" (captured in the offscreen doc)
+// No manual "who is who" — the source decides. Drafts talking points via Claude.
 
 const API_MODEL_IDS = { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-4-6", opus: "claude-opus-4-8" };
 
@@ -12,22 +14,21 @@ Rules:
 - If the message has a line starting with "MY EXTRA INSTRUCTION:", follow it closely.`;
 
 const $ = (id) => document.getElementById(id);
-const settings = { deepgramKey: "", anthropicKey: "", model: "sonnet", language: "en", diarize: true, context: "" };
+const settings = { deepgramKey: "", anthropicKey: "", model: "sonnet", language: "en", context: "" };
 
-const utterances = [];        // { speaker, text }
-let partial = null;           // { speaker, text }
-let meLabel = null;           // "A" | "B" | null
-const ME_CYCLE = [null, "A", "B"];
+const utterances = [];                 // { source: "me"|"interviewer", text }
+const partials = { me: null, interviewer: null };
+let micPipe = null, micDg = null;
 
-// ---- settings persistence ----
+const NAME = { me: "Me", interviewer: "Interviewer" };
+
+// ---- settings ----
 async function loadSettings() {
-  const s = await chrome.storage.local.get(Object.keys(settings));
-  Object.assign(settings, s);
+  Object.assign(settings, await chrome.storage.local.get(Object.keys(settings)));
   $("deepgramKey").value = settings.deepgramKey || "";
   $("anthropicKey").value = settings.anthropicKey || "";
   $("model").value = settings.model || "sonnet";
   $("language").value = settings.language || "en";
-  $("diarize").checked = settings.diarize !== false;
   $("context").value = settings.context || "";
 }
 async function saveSettings() {
@@ -36,7 +37,6 @@ async function saveSettings() {
     anthropicKey: $("anthropicKey").value.trim(),
     model: $("model").value,
     language: $("language").value.trim() || "en",
-    diarize: $("diarize").checked,
     context: $("context").value,
   });
   await chrome.storage.local.set(settings);
@@ -44,61 +44,84 @@ async function saveSettings() {
   setTimeout(() => ($("saveMsg").textContent = ""), 1500);
 }
 
-// ---- transcript rendering ----
-function speakerName(label) {
-  if (!label) return "Speaker ?";
-  if (meLabel == null) return "Speaker " + label;
-  return label === meLabel ? "Me" : "Interviewer";
-}
-function spkClass(name) {
-  return name === "Me" ? "spk-Me" : name === "Interviewer" ? "spk-Interviewer" : "spk-other";
-}
-function renderTranscript() {
+// ---- transcript ----
+function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function cls(source) { return source === "me" ? "spk-Me" : "spk-Interviewer"; }
+
+function render() {
   const box = $("transcript");
-  if (!utterances.length && !partial) {
-    box.innerHTML = '<div class="muted">Press Start, then talk — the call\'s audio is transcribed here.</div>';
+  if (!utterances.length && !partials.me && !partials.interviewer) {
+    box.innerHTML = '<div class="muted">Press Start — your mic and the call audio are transcribed here, labelled automatically.</div>';
     return;
   }
-  const rows = utterances.map((u) => {
-    const n = speakerName(u.speaker);
-    return `<div class="line"><span class="${spkClass(n)}">${n}:</span> ${escapeHtml(u.text)}</div>`;
-  });
-  if (partial) {
-    const n = speakerName(partial.speaker);
-    rows.push(`<div class="line partial">${n}: ${escapeHtml(partial.text)} ▌</div>`);
+  const rows = utterances.map(
+    (u) => `<div class="line"><span class="${cls(u.source)}">${NAME[u.source]}:</span> ${escapeHtml(u.text)}</div>`
+  );
+  for (const src of ["interviewer", "me"]) {
+    if (partials[src]) rows.push(`<div class="line partial">${NAME[src]}: ${escapeHtml(partials[src])} ▌</div>`);
   }
   box.innerHTML = rows.join("");
   box.scrollTop = box.scrollHeight;
 }
-function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
-
-function latestQuestion() {
-  if (!utterances.length) return null;
-  if (meLabel != null) {
-    for (let i = utterances.length - 1; i >= 0; i--) if (utterances[i].speaker !== meLabel) return utterances[i].text;
-  }
-  return utterances[utterances.length - 1].text;
+function addFinal(source, text) { utterances.push({ source, text }); partials[source] = null; render(); }
+function setPartial(source, text) { partials[source] = text; render(); }
+function setLevel(source, active) {
+  const el = source === "me" ? $("lvlMe") : $("lvlThem");
+  el.className = "lvldot " + (active ? "on" : "off");
 }
 
-// ---- capture control ----
+function latestQuestion() {
+  for (let i = utterances.length - 1; i >= 0; i--) if (utterances[i].source === "interviewer") return utterances[i].text;
+  return utterances.length ? utterances[utterances.length - 1].text : null;
+}
+function transcriptText() { return utterances.map((u) => `${NAME[u.source]}: ${u.text}`).join("\n"); }
+
+// ---- capture ----
 function setState(state) {
   $("state").textContent = state;
   $("dot").className = "dot " + state;
   $("startBtn").disabled = state === "recording";
   $("stopBtn").disabled = state !== "recording";
+  if (state !== "recording") { setLevel("me", false); setLevel("interviewer", false); }
 }
+
+async function startMic() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    status("Mic blocked — only the other side will be transcribed.", true);
+    return;
+  }
+  micDg = openDeepgram(
+    { key: settings.deepgramKey, model: "nova-3", language: settings.language },
+    { onPartial: (t) => setPartial("me", t), onFinal: (t) => addFinal("me", t),
+      onError: (m) => status("mic: " + m, true) }
+  );
+  micPipe = await startAudioPipe(stream, (buf) => micDg.sendPcm(buf),
+    { playback: false, onLevel: (a) => setLevel("me", a) }); // no playback → no echo
+}
+function stopMic() {
+  try { micPipe && micPipe.stop(); } catch {}
+  try { micDg && micDg.close(); } catch {}
+  micPipe = micDg = null;
+}
+
 async function start() {
   if (!settings.deepgramKey) return status("Add your Deepgram key in Settings first.", true);
+  setState("recording");
+  await startMic(); // mic prompt happens here, in the side panel (a user gesture)
   const resp = await chrome.runtime.sendMessage({
     target: "background", cmd: "start",
-    config: { deepgramKey: settings.deepgramKey, deepgramModel: "nova-3",
-              diarize: settings.diarize, language: settings.language },
+    config: { deepgramKey: settings.deepgramKey, deepgramModel: "nova-3", language: settings.language },
   });
   if (resp && resp.ok) status("Capturing: " + (resp.tabTitle || "active tab"));
-  else status("Could not start: " + (resp?.error || "unknown"), true);
+  else { status("Tab capture failed: " + (resp?.error || "unknown"), true); }
 }
 async function stop() {
+  stopMic();
   await chrome.runtime.sendMessage({ target: "background", cmd: "stop" });
+  setState("stopped");
 }
 
 // ---- answer drafting (Anthropic streaming) ----
@@ -111,9 +134,6 @@ function buildUserPrompt(question, note) {
   if (note.trim()) parts.push(`MY EXTRA INSTRUCTION: ${note.trim()}`);
   parts.push("Now write my spoken answer:");
   return parts.join("\n\n");
-}
-function transcriptText() {
-  return utterances.map((u) => `${speakerName(u.speaker)}: ${u.text}`).join("\n");
 }
 async function help() {
   const question = latestQuestion();
@@ -176,13 +196,15 @@ function status(msg, isErr) {
   el.style.color = isErr ? "var(--red)" : "var(--muted)";
 }
 
-// ---- incoming messages from offscreen/background ----
+// ---- messages from the offscreen (interviewer source) ----
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.target !== "sidepanel") return;
-  if (msg.type === "partial") { partial = { speaker: msg.speaker, text: msg.text }; renderTranscript(); }
-  else if (msg.type === "final") { utterances.push({ speaker: msg.speaker || "?", text: msg.text }); partial = null; renderTranscript(); }
-  else if (msg.type === "status") { setState(msg.state); }
-  else if (msg.type === "error") { status(msg.message, true); setState("stopped"); }
+  const src = msg.source || "interviewer";
+  if (msg.type === "partial") setPartial(src, msg.text);
+  else if (msg.type === "final") addFinal(src, msg.text);
+  else if (msg.type === "level") setLevel(src, msg.active);
+  else if (msg.type === "status") { if (msg.state === "recording") setState("recording"); }
+  else if (msg.type === "error") status(msg.message, true);
 });
 
 // ---- wire up ----
@@ -193,11 +215,6 @@ $("stopBtn").addEventListener("click", stop);
 $("helpBtn").addEventListener("click", help);
 $("saveBtn").addEventListener("click", saveSettings);
 $("context").addEventListener("change", saveSettings);
-$("meBtn").addEventListener("click", () => {
-  meLabel = ME_CYCLE[(ME_CYCLE.indexOf(meLabel) + 1) % ME_CYCLE.length];
-  $("meBtn").textContent = "🙋 me: " + (meLabel ? "Speaker " + meLabel : "unset");
-  renderTranscript();
-});
 
 loadSettings();
 setState("idle");
