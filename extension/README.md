@@ -39,6 +39,26 @@ required (interview accommodations, etc.).
    interviewer's latest question.
 6. **■ Stop** when done.
 
+## Troubleshooting — "I don't see any transcript"
+
+Text only appears when **someone actually speaks** into a captured source. While
+recording with no text yet, the panel now tells you exactly what it's hearing:
+
+- **`them … waiting for the call tab`** — the meeting tab isn't producing audio.
+  Make sure the **call tab** (the one you focused when pressing Start) actually
+  has sound playing. If you're alone in the call, there's nothing to transcribe.
+- **`you ✗ mic off — permission denied`** — Chrome blocked the microphone for the
+  side panel. Click the **site/🎤 icon in the address bar → Allow**, or reset it
+  under `chrome://settings/content/microphone`, then press Stop → Start again.
+  (Your own voice needs the mic; the interviewer's voice comes from the tab.)
+
+**Definitive 30-second self-test (no call needed):** open any tab playing speech
+— e.g. a talking **YouTube** video — focus that tab, open the side panel, press
+**▶ Start**, then switch back to the video. Within a second or two you'll see
+**`Interviewer:`** lines fill in. That confirms the capture → Deepgram → display
+path end-to-end. (Run `node extension/test_render.cjs` to verify the rendering
+path in code.)
+
 ## How it works
 
 ```

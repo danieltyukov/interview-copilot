@@ -22,8 +22,10 @@ const utterances = [];                       // { source, text }
 const partials = { me: null, interviewer: null };
 let hub = null;
 let sources = [];                            // [{ stop() }]
+let recording = false;                       // drives the "listening…" placeholder
 const frames = { me: 0, interviewer: 0 };
 const dgOpen = { me: false, interviewer: false };
+const micState = { ok: false, msg: "" };     // mic is best-effort; tab audio is primary
 
 function updateDiag() {
   const st = hub ? hub.state() : "—";
@@ -61,7 +63,20 @@ function cls(source) { return source === "me" ? "spk-Me" : "spk-Interviewer"; }
 function render() {
   const box = $("transcript");
   if (!utterances.length && !partials.me && !partials.interviewer) {
-    box.innerHTML = '<div class="muted">Press Start — your mic and the call audio are transcribed here, labelled automatically.</div>';
+    if (recording) {
+      const them = frames.interviewer > 0
+        ? `<b>them</b> ✓ hearing the call (${frames.interviewer} frames)`
+        : `<b>them</b> … waiting for the call tab — is audio actually playing in it?`;
+      const you = micState.ok
+        ? `<b>you</b> ✓ mic live (${frames.me} frames)`
+        : `<b>you</b> ✗ mic off — ${escapeHtml(micState.msg || "not granted")}`;
+      box.innerHTML =
+        `<div class="muted">🎧 Listening…<br>${them}<br>${you}<br>` +
+        `Text appears the moment someone <b>speaks</b>. The interviewer's voice ` +
+        `comes from the call tab; your own voice needs the mic.</div>`;
+    } else {
+      box.innerHTML = '<div class="muted">Press Start — the call audio is transcribed here, labelled automatically.</div>';
+    }
     return;
   }
   const rows = utterances.map(
@@ -86,17 +101,26 @@ function transcriptText() { return utterances.map((u) => `${NAME[u.source]}: ${u
 
 // ---- capture ----
 function setState(state) {
+  recording = state === "recording";
   $("state").textContent = state;
   $("dot").className = "dot " + state;
   $("startBtn").disabled = state === "recording";
   $("stopBtn").disabled = state !== "recording";
   if (state !== "recording") { setLevel("me", false); setLevel("interviewer", false); }
+  render();   // reflect listening / idle placeholder immediately
 }
 
 function attach(source, stream, playback) {
   let dg;
   const tap = hub.addSource(stream, (buf) => {
-    if (dg) { dg.sendPcm(buf); frames[source]++; if (frames[source] % 10 === 0) updateDiag(); }
+    if (!dg) return;
+    dg.sendPcm(buf);
+    frames[source]++;
+    if (frames[source] % 10 === 0) {
+      updateDiag();
+      // keep the "listening…" frame counts live until real text arrives
+      if (!utterances.length && !partials.me && !partials.interviewer) render();
+    }
   }, { playback, onLevel: (a) => setLevel(source, a) });
   dg = openDeepgram(
     { key: settings.deepgramKey, model: "nova-3", language: settings.language, sampleRate: hub.sampleRate },
@@ -120,13 +144,19 @@ async function start() {
   dgOpen.me = false; dgOpen.interviewer = false;
   updateDiag();
 
-  // your mic -> "Me" (prompts for mic permission the first time)
+  // your mic -> "Me" (best-effort; the interviewer's audio is the tab, below)
+  micState.ok = false; micState.msg = "";
   try {
     const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
     attach("me", mic, false);
+    micState.ok = true;
   } catch (e) {
-    status("Mic blocked — only the other side will be transcribed.", true);
+    micState.msg = e.name === "NotAllowedError"
+      ? "permission denied — click the 🎤/site icon in the address bar and Allow"
+      : (e.message || String(e));
+    status("Mic off (" + micState.msg + "). The call tab is still transcribed.", true);
   }
+  render();
 
   // the meeting tab -> "Interviewer"
   const resp = await chrome.runtime.sendMessage({ target: "background", cmd: "getStreamId" });
