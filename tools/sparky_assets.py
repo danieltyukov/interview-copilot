@@ -58,14 +58,13 @@ def sparky_group(x0, y0, cell):
 
 
 def write_icon(path):
-    """App icon: yellow Sparky on a cream rounded tile, filling the frame."""
+    """App icon: yellow Sparky mascot only, on a transparent background."""
     size = 128
     cell = 7
     grid = N * cell
     off = (size - grid) / 2
     svg = f'''<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" \
 xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-  <rect width="{size}" height="{size}" rx="28" fill="{CREAM}"/>
   {sparky_group(off, off, cell)}
 </svg>
 '''
