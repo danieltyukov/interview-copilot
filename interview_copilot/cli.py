@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .assistant import DEFAULT_OLLAMA_MODEL
 from .engine import CopilotEngine, EngineConfig
 
 CONFIG_ENV = Path.home() / ".config" / "interview-copilot" / "config.env"
@@ -41,7 +42,7 @@ def load_config_env() -> None:
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="interview-copilot",
-        description="Live interview copilot: transcribe the room and draft "
+        description="Sparky — live interview copilot: transcribe the room and draft "
                     "first-person answers from your project's context.",
     )
     p.add_argument("dir", nargs="?", default=".",
@@ -61,8 +62,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--answer-backend", choices=["auto", "api", "cli"], default="auto",
                    help="Answer generation: auto (API if ANTHROPIC_API_KEY set, else CLI), "
                         "with automatic CLI fallback whenever the API fails.")
-    p.add_argument("--ollama-model", default="llama3.2",
-                   help="Local LLM (via Ollama) for offline answers (default: llama3.2).")
+    p.add_argument("--ollama-model", default=DEFAULT_OLLAMA_MODEL,
+                   help="Local LLM (via Ollama) for offline answers. Swap in any "
+                        f"Ollama tag here to switch models (default: {DEFAULT_OLLAMA_MODEL}).")
     p.add_argument("--ollama-host", default="http://localhost:11434",
                    help="Ollama server URL (default: http://localhost:11434).")
     p.add_argument("--no-diarize", action="store_true",
@@ -119,7 +121,7 @@ def _self_test(args) -> int:
     backend, key = _resolve_backend(args)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     answer_mode = "api→cli" if (args.answer_backend in ("auto", "api") and api_key) else "cli"
-    print("Interview Copilot self-test\n" + "-" * 30)
+    print("Sparky self-test\n" + "-" * 30)
     print(f"STT backend: {backend}    Answer backend: {answer_mode}→local")
 
     online = check_online()

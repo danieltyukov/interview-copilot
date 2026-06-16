@@ -161,7 +161,7 @@ class CopilotTUI:
             f"{badge}[/]  {net}  ⏱ {elapsed}  "
             f"🎙 {stt_tag}  🧠 {ans_tag}  🙋 me={me}"
         )
-        return Panel(head, title="Interview Copilot", border_style="blue")
+        return Panel(head, title="Sparky", border_style="yellow")
 
     def _transcript(self, height: int) -> Panel:
         rows: list[Text] = list(self.lines)
@@ -367,4 +367,4 @@ class CopilotTUI:
         # Leave the user with the last answer + where the transcript went.
         if self.answer:
             self.console.print(Panel(self.answer, title="Last drafted answer", border_style="green"))
-        self.console.print("[dim]Interview copilot closed.[/]")
+        self.console.print("[dim]Sparky — interview copilot closed.[/]")

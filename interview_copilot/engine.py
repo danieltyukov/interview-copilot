@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .assistant import (ApiAssistant, AssistantError, ChainAssistant, CliAssistant,
-                        OllamaAssistant)
+from .assistant import (DEFAULT_OLLAMA_MODEL, ApiAssistant, AssistantError,
+                        ChainAssistant, CliAssistant, OllamaAssistant)
 from .audio import UtteranceSegmenter
 from .backends import Backend, DeepgramBackend, FallbackSttBackend, LocalBackend
 from .context import gather_context
@@ -43,7 +43,7 @@ class EngineConfig:
     answer_effort: str = "low"
     answer_backend: str = "auto"           # "auto" | "api" | "cli"
     anthropic_api_key: str | None = None
-    ollama_model: str = "llama3.2"         # local LLM for offline answers
+    ollama_model: str = DEFAULT_OLLAMA_MODEL   # local LLM for offline answers
     ollama_host: str = "http://localhost:11434"
     diarize: bool = True
     language: str | None = "en"

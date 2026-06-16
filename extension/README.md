@@ -1,6 +1,6 @@
-# Meeting Copilot — Chrome extension
+# Sparky — Chrome extension
 
-<p align="center"><img src="../docs/extension.png" width="380" alt="Meeting Copilot side panel"></p>
+<p align="center"><img src="../docs/extension.png" width="380" alt="Sparky side panel"></p>
 
 A browser version of the desktop copilot for **Google Meet / Microsoft Teams**
 (web). It transcribes the call's audio live and, on a click, drafts

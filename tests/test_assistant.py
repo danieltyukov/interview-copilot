@@ -1,7 +1,8 @@
 import pytest
 
-from interview_copilot.assistant import (ApiAssistant, Assistant, AssistantError,
-                                         ChainAssistant, CliAssistant, OllamaAssistant)
+from interview_copilot.assistant import (DEFAULT_OLLAMA_MODEL, ApiAssistant, Assistant,
+                                         AssistantError, ChainAssistant, CliAssistant,
+                                         OllamaAssistant)
 
 
 def test_build_user_prompt_contains_parts():
@@ -148,14 +149,14 @@ def test_chain_set_model_propagates():
 
 
 def test_ollama_set_model_is_noop():
-    o = OllamaAssistant(model="llama3.2")
+    o = OllamaAssistant(model=DEFAULT_OLLAMA_MODEL)
     o.set_model("haiku")          # 1/2/3 picks Claude models; local keeps its own
-    assert o.model == "llama3.2"
+    assert o.model == DEFAULT_OLLAMA_MODEL
 
 
 def test_ollama_parses_streamed_chat(monkeypatch):
     import io, json as _json
-    o = OllamaAssistant(model="llama3.2")
+    o = OllamaAssistant(model=DEFAULT_OLLAMA_MODEL)
     lines = [
         _json.dumps({"message": {"content": "Hello"}, "done": False}),
         _json.dumps({"message": {"content": " world"}, "done": False}),

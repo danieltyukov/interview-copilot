@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Meeting Copilot",
+  "name": "Sparky",
   "version": "0.1.0",
-  "description": "Visible meeting assistant: live transcript + context-grounded talking points for calls you're in (Google Meet, Microsoft Teams).",
+  "description": "Sparky — visible meeting copilot: live transcript + context-grounded talking points for calls you're in (Google Meet, Microsoft Teams).",
   "permissions": ["tabCapture", "sidePanel", "storage", "tabs"],
   "host_permissions": [
     "https://api.anthropic.com/*",
@@ -10,7 +10,7 @@
   ],
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "sidepanel.html" },
-  "action": { "default_title": "Open Meeting Copilot (side panel)" },
+  "action": { "default_title": "Open Sparky (side panel)" },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

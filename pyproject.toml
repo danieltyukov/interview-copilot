@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "interview-copilot"
 version = "0.1.0"
-description = "Live, on-device in-person interview copilot: transcribe the room and draft first-person answers from your project's context."
+description = "Sparky — live, on-device in-person interview copilot: transcribe the room and draft first-person answers from your project's context."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

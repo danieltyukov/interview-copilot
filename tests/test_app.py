@@ -130,7 +130,8 @@ def test_header_local_answer_shows_ollama_model(tmp_path):
     tui._on_event({"type": "help", "question": "Q?", "answer": "A", "served": "local"})
     tui.console.print(tui._render())
     out = tui.console.export_text()
-    assert "llama3.2·local" in out               # local LLM model shown when offline
+    # header shows the configured local LLM (the Ollama default) tagged ·local
+    assert f"{tui.engine.cfg.ollama_model}·local" in out
 
 
 def test_help_served_updates_answer_active(tmp_path):

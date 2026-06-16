@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="docs/logo.png" width="760" alt="Interview Copilot">
+  <img src="docs/logo.png" width="760" alt="Sparky — interview copilot">
 </p>
 
 <p align="center">
-  A terminal copilot for in-person technical interviews. Launch it inside your
+  <b>Sparky</b> is a terminal copilot for in-person technical interviews. Launch it inside your
   project, it transcribes the room live, and on a keypress drafts a
   <b>first-person answer</b> to the latest question — grounded in <i>your</i>
   codebase — for you to read aloud.
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.png" width="820" alt="Interview Copilot in action">
+  <img src="docs/screenshot.png" width="820" alt="Sparky in action">
 </p>
 
 ---
@@ -21,7 +21,7 @@
 Optional keys make it faster (both have automatic fallbacks if absent):
 
 ```bash
-git clone <your-repo-url> && cd inperson-interview-copilot
+git clone <your-repo-url> && cd interview-copilot
 ./install.sh           # creates a venv + installs `interview-copilot` on your PATH
 ```
 
@@ -51,8 +51,13 @@ LLM once (while you still have internet):
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh   # one-time
-ollama pull llama3.2                            # ~2 GB, any model works
+ollama pull qwen3:4b-instruct-2507-q4_K_M       # ~2.5 GB — the default local model
 ```
+
+Qwen3 4B Instruct (2507) is the default: a non-thinking text instruct model that
+answers immediately, so it stays near-real-time even on a CPU-only machine. To use
+a different local model, pull it and pass `--ollama-model <ollama-tag>` (e.g.
+`--ollama-model qwen3.5:4b` or `--ollama-model qwen3:8b-instruct`).
 
 Then if WiFi drops mid-interview, transcription and answers both switch to local
 automatically and the header flips to `● OFFLINE`. `interview-copilot --self-test`

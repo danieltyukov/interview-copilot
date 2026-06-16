@@ -18,7 +18,7 @@
   <text x="24" y="220" font-size="12.5" font-style="italic" fill="#7d8590">Me: Right, so the dominant pole sits ▌</text>
 
   <!-- answer pane -->
-  <rect x="12" y="274" width="436" height="252" rx="10" fill="#161b22" stroke="#1f6f53"/>
+  <rect x="12" y="274" width="436" height="252" rx="10" fill="#161b22" stroke="#FFC61A"/>
   <text x="24" y="294" font-size="10.5" fill="#7d8590">✋ TALKING POINTS — READ THIS</text>
   <text x="24" y="316" font-size="11.5" font-style="italic" fill="#7d8590">Q: Walk me through your gain stage…</text>
   <g font-size="13.5" fill="#e6edf3">
@@ -40,8 +40,8 @@
   <text x="34" y="606" font-size="13" fill="#e6edf3">▶ Start</text>
   <rect x="140" y="584" width="120" height="34" rx="8" fill="#161b22" stroke="#30363d"/>
   <text x="160" y="606" font-size="13" fill="#7d8590">■ Stop</text>
-  <rect x="268" y="584" width="180" height="34" rx="8" fill="#14532d" stroke="#1f6f53"/>
-  <text x="322" y="606" font-size="13" fill="#d1fae5">✋ Help</text>
+  <rect x="268" y="584" width="180" height="34" rx="8" fill="#3a2f08" stroke="#FFC61A"/>
+  <text x="322" y="606" font-size="13" fill="#fde68a">✋ Help</text>
 
   <text x="24" y="648" font-size="12" fill="#7d8590">▸ Your context (pasted)</text>
   <text x="24" y="672" font-size="12" fill="#7d8590">▸ ⚙ Settings (Deepgram + Anthropic keys)</text>

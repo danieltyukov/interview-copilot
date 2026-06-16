@@ -48,6 +48,14 @@ API_MODEL_IDS = {
     "opus": "claude-opus-4-8",
 }
 
+# Default local LLM for the offline answer path (served by Ollama). One source of
+# truth so the model can be swapped in a single place. Qwen3 4B Instruct (2507) is
+# the pick over a larger or "thinking" model: it's a dedicated *non-thinking* text
+# instruct model, so on a CPU-only box it streams an answer immediately instead of
+# spending seconds on hidden reasoning — the speed-first behaviour this tool needs.
+# Override at runtime with `--ollama-model` (any Ollama tag works).
+DEFAULT_OLLAMA_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
+
 
 class AssistantError(RuntimeError):
     pass
@@ -267,7 +275,7 @@ class OllamaAssistant:
 
     needs_network = False
 
-    def __init__(self, model: str = "llama3.2", host: str = "http://localhost:11434",
+    def __init__(self, model: str = DEFAULT_OLLAMA_MODEL, host: str = "http://localhost:11434",
                  timeout: int = 120) -> None:
         self.model = model
         self.host = host.rstrip("/")
@@ -390,7 +398,7 @@ class ChainAssistant:
         if not online and not tried_any:
             raise AssistantError(
                 "Offline and no local model running — install Ollama and pull a model "
-                "(e.g. `ollama pull llama3.2`) to answer with no internet.")
+                f"(e.g. `ollama pull {DEFAULT_OLLAMA_MODEL}`) to answer with no internet.")
         raise AssistantError(str(last_err) if last_err else "no answer backend available")
 
     def ping(self) -> str:

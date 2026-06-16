@@ -2,7 +2,7 @@
 :root {
   --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
   --muted: #7d8590; --teal: #34d399; --cyan: #38bdf8; --magenta: #e879f9;
-  --amber: #fbbf24; --red: #f87171;
+  --amber: #fbbf24; --red: #f87171; --brand: #FFC61A;  /* Sparky yellow */
 }
 body {
   margin: 0; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -23,7 +23,7 @@ header { padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .lvldot.on { background: var(--teal); box-shadow: 0 0 0 3px rgba(52,211,153,.25); }
 main { flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 .pane { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); padding: 8px 10px; }
-.pane.answer { border-color: #1f6f53; }
+.pane.answer { border-color: var(--brand); }
 .pane-title { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
 .transcript { max-height: 34vh; overflow: auto; }
 .transcript .line { margin: 2px 0; }
@@ -44,9 +44,9 @@ input[type=text], textarea, select, input[type=password] {
 .btns { display: flex; gap: 8px; }
 button { background: var(--panel); color: var(--text); border: 1px solid var(--border);
   border-radius: 8px; padding: 7px 12px; cursor: pointer; font: inherit; }
-button:hover:not(:disabled) { border-color: var(--teal); }
+button:hover:not(:disabled) { border-color: var(--brand); }
 button:disabled { opacity: .5; cursor: default; }
-button.primary { background: #14532d; border-color: #1f6f53; color: #d1fae5; flex: 1; }
+button.primary { background: #3a2f08; border-color: var(--brand); color: #fde68a; flex: 1; }
 details summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
 details label { display: block; margin: 6px 0; color: var(--muted); }
 details label.inline { display: flex; align-items: center; gap: 6px; }
