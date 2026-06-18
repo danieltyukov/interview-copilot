@@ -256,11 +256,13 @@ class CopilotTUI:
             inner = answer_h - 2
         transcript_h = avail - answer_h
 
+        # The help box (the answer you read aloud) sits ABOVE the transcript so
+        # the thing you act on is at eye level, not buried under the scrolling log.
         layout = Layout()
         layout.split_column(
             Layout(self._header(), size=3, name="header"),
-            Layout(self._transcript(transcript_h - 2), size=transcript_h, name="transcript"),
             Layout(self._answer_panel(lines, inner), size=answer_h, name="answer"),
+            Layout(self._transcript(transcript_h - 2), size=transcript_h, name="transcript"),
             Layout(self._footer(), size=5, name="footer"),
         )
         return layout

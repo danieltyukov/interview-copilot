@@ -86,6 +86,26 @@ def test_long_answer_scrolls_in_short_window(tmp_path):
     assert "Paragraph number 19" in bottom                # now visible
 
 
+def test_help_box_renders_above_transcript(tmp_path):
+    """The answer/help box sits ABOVE the live transcript, not below it."""
+    tui = _tui(tmp_path)
+
+    def render():
+        tui.console = Console(width=90, height=44, record=True)
+        tui.console.print(tui._render())
+        return tui.console.export_text()
+
+    # Empty (initial) state: the placeholder help box still leads the transcript.
+    out = render()
+    assert out.index("Help — read this aloud") < out.index("Live transcript")
+
+    # With a drafted answer the ordering must hold too.
+    tui.answer_question = "Why this design?"
+    tui.answer = "Because the thing you read aloud should be at eye level."
+    out = render()
+    assert out.index("Help — read this aloud") < out.index("Live transcript")
+
+
 def _tui_api_deepgram(tmp_path):
     eng = CopilotEngine(EngineConfig(root=tmp_path, stt_backend="deepgram",
                                      deepgram_api_key="x", anthropic_api_key="x"))

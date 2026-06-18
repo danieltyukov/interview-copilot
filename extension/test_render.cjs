@@ -113,5 +113,12 @@ check("transcriptText is labelled + ordered",
 ctx.addFinal("interviewer", "<script>alert(1)</script>");
 check("transcript escapes HTML", /&lt;script&gt;/.test(T()) && !/<script>alert/.test(T()), T());
 
+// 6) Layout: the help/answer box must sit ABOVE the live transcript in the markup
+//    (the panel is flex-column, so DOM order is visual order).
+const html = fs.readFileSync(path.join(extDir, "sidepanel.html"), "utf8");
+check("answer box is rendered above the transcript",
+  html.indexOf('id="answer"') < html.indexOf('id="transcript"'),
+  `answer@${html.indexOf('id="answer"')} transcript@${html.indexOf('id="transcript"')}`);
+
 console.log("\n" + (failures ? `${failures} FAIL` : "all passed") + "\n");
 process.exit(failures ? 1 : 0);
