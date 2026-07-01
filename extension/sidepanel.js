@@ -4,7 +4,7 @@
 //   • the meeting tab -> "Interviewer"
 // Each source streams to its own Deepgram connection; answers come from Claude.
 
-const API_MODEL_IDS = { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-5", opus: "claude-opus-4-8" };
+const API_MODEL_IDS = { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-4-6", opus: "claude-opus-4-8" };
 
 const SYSTEM_RULES = `You are my real-time meeting copilot. Read my context and the live transcript, then \
 draft MY answer to the other person's latest question.

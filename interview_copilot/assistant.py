@@ -44,7 +44,7 @@ important steer for what I want from the answer, and follow it closely.
 # Friendly names the UI cycles through -> concrete API model IDs.
 API_MODEL_IDS = {
     "haiku": "claude-haiku-4-5",
-    "sonnet": "claude-sonnet-5",
+    "sonnet": "claude-sonnet-4-6",
     "opus": "claude-opus-4-8",
 }
 
