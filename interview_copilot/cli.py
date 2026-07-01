@@ -71,6 +71,10 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Disable speaker separation; transcribe everything plainly.")
     p.add_argument("--language", default="en",
                    help="Transcription language code (default: en).")
+    p.add_argument("--context-budget", type=int, default=60000,
+                   help="Max characters of project context sent to the model "
+                        "(default: 60000). Raise it for a rich, hand-written "
+                        "context (e.g. a presentation/slide deck), lower it to cut cost.")
     p.add_argument("--audio-file", default=None,
                    help="Use an audio file instead of the microphone (demo/testing).")
     p.add_argument("--headless", action="store_true",
@@ -109,6 +113,7 @@ def _make_config(args) -> EngineConfig:
         ollama_host=args.ollama_host,
         diarize=not args.no_diarize,
         language=args.language,
+        context_budget=args.context_budget,
     )
 
 

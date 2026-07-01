@@ -26,6 +26,9 @@ KEY_FILES = [
     "package.json", "Cargo.toml", "go.mod", "pom.xml", "build.gradle",
     "Gemfile", "composer.json", "CMakeLists.txt", "Makefile",
     "ARCHITECTURE.md", "CONTRIBUTING.md", "docs/README.md",
+    # Hand-written context (e.g. a presentation/exam prep) read in full so the
+    # copilot can answer slide-specific and first-person Q&A.
+    "SPEECH_NOTES.md", "NOTES.md", "CONTEXT.md",
 ]
 
 
@@ -90,7 +93,7 @@ def _file_tree(root: Path, max_entries: int = 220, max_depth: int = 3) -> str:
     return "\n".join(lines)
 
 
-def _read_key_files(root: Path, per_file: int = 2500, total_budget: int = 6000) -> str:
+def _read_key_files(root: Path, per_file: int = 30000, total_budget: int = 50000) -> str:
     chunks: list[str] = []
     used = 0
     seen: set[Path] = set()
@@ -117,7 +120,7 @@ def _read_key_files(root: Path, per_file: int = 2500, total_budget: int = 6000) 
     return "\n\n".join(chunks)
 
 
-def gather_context(root: Path | str, char_budget: int = 9000) -> str:
+def gather_context(root: Path | str, char_budget: int = 60000) -> str:
     """Return a compact textual description of ``root``.
 
     Includes the directory name/path, git status, a depth-limited file tree, and

@@ -47,7 +47,7 @@ class EngineConfig:
     ollama_host: str = "http://localhost:11434"
     diarize: bool = True
     language: str | None = "en"
-    context_budget: int = 9000
+    context_budget: int = 60000
 
 
 ANSWER_MODELS = ["haiku", "sonnet", "opus"]
