@@ -98,7 +98,10 @@ interview-copilot
 
 A **visible** Chrome side-panel build lives in [`extension/`](extension/). It
 transcribes a Meet or Teams call and drafts talking points in a panel, using the
-same Deepgram + Claude stack. It is a normal, on-screen aid (no stealth or
+same Deepgram + Claude stack. Because it captures your mic and the call tab
+separately, it labels your own voice exactly, and it diarizes the call tab so
+several people on the far end show up as **Interviewer 1 / 2 / 3** rather than
+one merged block. It is a normal, on-screen aid (no stealth or
 screen-share hiding) — use it where you have consent. See
 [`extension/README.md`](extension/README.md) for loading instructions.
 

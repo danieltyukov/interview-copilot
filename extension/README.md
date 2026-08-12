@@ -32,9 +32,12 @@ required (interview accommodations, etc.).
 3. Press **Start**. The first time, Chrome asks for **microphone** access (grant
    it). It then captures two sources and the transcript fills in live (you still
    hear the call normally).
-4. **Speakers are detected automatically** — your **mic = Me**, the **call's
-   audio = Interviewer**. No manual marking. The `you` / `them` dots in the
-   header light up when each side is being heard, so you can confirm capture.
+4. **Speakers are detected automatically.** Your **mic** is always **Me**. The
+   call's audio is split by Deepgram diarization, so several people on the far
+   end become **Interviewer 1**, **Interviewer 2**, **Interviewer 3** (a call
+   with one other voice just reads **Interviewer**). No manual marking. The
+   `you` / `them` dots in the header light up when each side is being heard, so
+   you can confirm capture.
 5. Press **Help** at any time to draft a first-person answer to the interviewer's
    latest question.
 6. Press **Stop** when done.
@@ -51,9 +54,11 @@ recording with no text yet, the panel tells you exactly what it is hearing:
   panel**, so the request is auto-denied and there is no microphone icon to
   click. Press the **Fix microphone access** button that appears under
   Start/Stop: it opens a normal tab where the prompt *does* render. Click
-  **Allow** there, close the tab, then press **Stop**, then **Start**. The grant
-  is keyed to the extension, so the side panel inherits it. (Your own voice needs
-  the mic; the interviewer's voice comes from the call tab and works without it.)
+  **Allow** there, close the tab, then press **Fix microphone access** once
+  more. The grant is keyed to the extension, so the side panel inherits it, and
+  the mic binds to the recording already in progress (no Stop/Start round trip,
+  and nothing already transcribed is lost). Until that succeeds your own voice
+  has no channel of its own, which is why it can end up attributed to the call.
 
 **Definitive 30-second self-test (no call needed):** open any tab playing speech
 — for example a talking **YouTube** video — focus that tab, open the side panel,
@@ -65,8 +70,8 @@ rendering path in code.)
 ## How it works
 
 ```
-  your mic ──────────────────→ Deepgram ─→ "Me"          ┐
-  meeting tab (tabCapture) ───→ Deepgram ─→ "Interviewer" ┘──→ live transcript
+  your mic ──────────────────→ Deepgram ──────────→ "Me"           ┐
+  meeting tab (tabCapture) ───→ Deepgram (diarize) ─→ "Interviewer N" ┘─→ live transcript
                                                                   │
    your context + transcript + the interviewer's question ────────┼─→ Anthropic API
                                                                   ↓
@@ -85,6 +90,13 @@ rendering path in code.)
   panel is part of your screen. The honest path for a real need (for example
   anxiety or accessibility) is disclosure or an accommodation, not concealment.
 - Captures **two sources**: your microphone (-> "Me") and the meeting tab's audio
-  (-> "Interviewer"). Speaker attribution is by source, which is exact — no
-  diarization guessing or manual marking. The first Start needs mic permission.
+  (-> "Interviewer N"). Which *side* you are on is exact, because it comes from
+  the capture source rather than a guess. Telling the far-end voices apart is
+  Deepgram diarization, so it is good but not infallible: voice indices can drift
+  on heavy crosstalk, and the numbering restarts on each Start. The first Start
+  needs mic permission.
+- If you run on speakers rather than headphones, your mic also hears the call.
+  Browser echo cancellation plus a text-level duplicate filter (a line arriving
+  on both sources within a few seconds is dropped) keeps that out of the
+  transcript. Short backchannels like "yes" are deliberately never filtered.
 - Personal-use tool: keys live client-side; there is no server.

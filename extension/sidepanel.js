@@ -1,8 +1,9 @@
 // Side-panel UI + capture. One AudioContext (resumed under the Start gesture)
-// taps two sources, labelled by origin — no manual marking, no diarization:
+// taps two legs:
 //   • your microphone -> "Me"
-//   • the meeting tab -> "Interviewer"
-// Each source streams to its own Deepgram connection; answers come from Claude.
+//   • the meeting tab  -> the far end, split by Deepgram diarization into
+//     "Interviewer 1", "Interviewer 2", … (plain "Interviewer" while there's one)
+// Each leg streams to its own Deepgram connection; answers come from Claude.
 
 const API_MODEL_IDS = { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-4-6", opus: "claude-opus-4-8" };
 
@@ -12,20 +13,22 @@ Rules:
 - First person, the words I'd say out loud. No preamble, no meta-commentary.
 - Concise and natural — speakable in ~20-40 seconds.
 - Be concrete and specific to my context when relevant.
+- Several people may be on the call; "Interviewer 1/2/…" are different voices.
 - If the message has a line starting with "MY EXTRA INSTRUCTION:", follow it closely.`;
 
 const $ = (id) => document.getElementById(id);
 const settings = { deepgramKey: "", anthropicKey: "", model: "sonnet", language: "en", context: "" };
-const NAME = { me: "Me", interviewer: "Interviewer" };
 
-const utterances = [];                       // { source, text }
-const partials = { me: null, interviewer: null };
+const utterances = [];                        // { key, text, t }
+const partials = { me: [], interviewer: [] }; // capture leg -> [{ speaker, text }]
+const speakerOrdinals = new Map();            // "int:N" -> 1,2,3… in first-heard order
 let hub = null;
-let sources = [];                            // [{ stop() }]
-let recording = false;                       // drives the "listening…" placeholder
-const frames = { me: 0, interviewer: 0 };
+let sources = [];                             // [{ stop() }]
+let recording = false;                        // drives the "listening…" placeholder
+let micAttached = false;
+const frames = { me: 0, interviewer: 0 };     // keyed by LEG, not by speaker
 const dgOpen = { me: false, interviewer: false };
-const micState = { ok: false, msg: "" };     // mic is best-effort; tab audio is primary
+const micState = { ok: false, msg: "" };      // mic is best-effort; tab audio is primary
 
 function updateDiag() {
   const st = hub ? hub.state() : "—";
@@ -34,6 +37,56 @@ function updateDiag() {
   $("diag").textContent =
     `ctx:${st}@${rate}Hz ${cap} · you ${frames.me}f ${dgOpen.me ? "dg✓" : "dg…"} · ` +
     `them ${frames.interviewer}f ${dgOpen.interviewer ? "dg✓" : "dg…"}`;
+}
+
+// ---- speaker identity ----
+// A capture leg plus Deepgram's speaker index resolve to a stable key. Labels are
+// derived at render time, so a 1:1 call reads "Interviewer" and every line upgrades
+// to numbered labels the moment a second voice is heard.
+function speakerKey(leg, speaker) {
+  if (leg === "me") return "me";
+  return "int:" + (typeof speaker === "number" ? speaker : 0);
+}
+function registerSpeaker(key) {
+  if (key !== "me" && !speakerOrdinals.has(key)) speakerOrdinals.set(key, speakerOrdinals.size + 1);
+}
+function labelFor(key) {
+  if (key === "me") return "Me";
+  if (speakerOrdinals.size <= 1) return "Interviewer";
+  return "Interviewer " + (speakerOrdinals.get(key) || speakerOrdinals.size);
+}
+const INT_CLASSES = ["spk-Interviewer", "spk-other", "spk-int3", "spk-int4"];
+function cls(key) {
+  if (key === "me") return "spk-Me";
+  return INT_CLASSES[((speakerOrdinals.get(key) || 1) - 1) % INT_CLASSES.length];
+}
+
+// ---- echo guard ----
+// On speakers the mic re-hears the call, and any leak of your voice into the tab
+// stream would surface as a brand-new "interviewer". Both show up as the same line
+// arriving on both legs within a beat, so drop whichever copy lands second.
+const ECHO_WINDOW_MS = 6000;
+const ECHO_SIMILARITY = 0.6;
+function wordSet(s) {
+  return new Set(s.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter(Boolean));
+}
+function similarity(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const w of a) if (b.has(w)) shared++;
+  return shared / (a.size + b.size - shared);
+}
+function isEcho(key, text, now) {
+  const set = wordSet(text);
+  if (set.size < 3) return false;               // keep short backchannels ("yes", "exactly")
+  const mine = key === "me";
+  for (let i = utterances.length - 1; i >= 0; i--) {
+    const u = utterances[i];
+    if (now - u.t > ECHO_WINDOW_MS) break;
+    if ((u.key === "me") === mine) continue;     // only compare across legs
+    if (similarity(set, wordSet(u.text)) >= ECHO_SIMILARITY) return true;
+  }
+  return false;
 }
 
 // ---- settings ----
@@ -60,10 +113,9 @@ async function saveSettings() {
 
 // ---- transcript ----
 function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
-function cls(source) { return source === "me" ? "spk-Me" : "spk-Interviewer"; }
 function render() {
   const box = $("transcript");
-  if (!utterances.length && !partials.me && !partials.interviewer) {
+  if (!utterances.length && !partials.me.length && !partials.interviewer.length) {
     if (recording) {
       const them = frames.interviewer > 0
         ? `<b>them</b> ✓ hearing the call (${frames.interviewer} frames)`
@@ -73,32 +125,51 @@ function render() {
         : `<b>you</b> ✗ mic off — ${escapeHtml(micState.msg || "not granted")}`;
       box.innerHTML =
         `<div class="muted">🎧 Listening…<br>${them}<br>${you}<br>` +
-        `Text appears the moment someone <b>speaks</b>. The interviewer's voice ` +
-        `comes from the call tab; your own voice needs the mic.</div>`;
+        `Text appears the moment someone <b>speaks</b>. Voices on the call are ` +
+        `separated automatically; your own voice needs the mic.</div>`;
     } else {
       box.innerHTML = '<div class="muted">Press Start — the call audio is transcribed here, labelled automatically.</div>';
     }
     return;
   }
   const rows = utterances.map(
-    (u) => `<div class="line"><span class="${cls(u.source)}">${NAME[u.source]}:</span> ${escapeHtml(u.text)}</div>`
+    (u) => `<div class="line"><span class="${cls(u.key)}">${labelFor(u.key)}:</span> ${escapeHtml(u.text)}</div>`
   );
-  for (const src of ["interviewer", "me"]) {
-    if (partials[src]) rows.push(`<div class="line partial">${NAME[src]}: ${escapeHtml(partials[src])} ▌</div>`);
+  for (const leg of ["interviewer", "me"]) {
+    for (const seg of partials[leg]) {
+      if (!seg.text.trim()) continue;
+      rows.push(`<div class="line partial">${labelFor(speakerKey(leg, seg.speaker))}: ${escapeHtml(seg.text)} ▌</div>`);
+    }
   }
   box.innerHTML = rows.join("");
   box.scrollTop = box.scrollHeight;
 }
-function addFinal(source, text) { utterances.push({ source, text }); partials[source] = null; render(); }
-function setPartial(source, text) { partials[source] = text; render(); }
-function setLevel(source, active) {
-  (source === "me" ? $("lvlMe") : $("lvlThem")).className = "lvldot " + (active ? "on" : "off");
+function addFinal(leg, segments) {
+  const now = Date.now();
+  for (const seg of segments) {
+    const text = seg.text.trim();
+    if (!text) continue;
+    const key = speakerKey(leg, seg.speaker);
+    if (isEcho(key, text, now)) continue;
+    registerSpeaker(key);
+    utterances.push({ key, text, t: now });
+  }
+  partials[leg] = [];
+  render();
+}
+function setPartial(leg, segments) {
+  partials[leg] = segments;
+  for (const seg of segments) registerSpeaker(speakerKey(leg, seg.speaker));
+  render();
+}
+function setLevel(leg, active) {
+  (leg === "me" ? $("lvlMe") : $("lvlThem")).className = "lvldot " + (active ? "on" : "off");
 }
 function latestQuestion() {
-  for (let i = utterances.length - 1; i >= 0; i--) if (utterances[i].source === "interviewer") return utterances[i].text;
+  for (let i = utterances.length - 1; i >= 0; i--) if (utterances[i].key !== "me") return utterances[i].text;
   return utterances.length ? utterances[utterances.length - 1].text : null;
 }
-function transcriptText() { return utterances.map((u) => `${NAME[u.source]}: ${u.text}`).join("\n"); }
+function transcriptText() { return utterances.map((u) => `${labelFor(u.key)}: ${u.text}`).join("\n"); }
 
 // ---- capture ----
 function setState(state) {
@@ -111,25 +182,55 @@ function setState(state) {
   render();   // reflect listening / idle placeholder immediately
 }
 
-function attach(source, stream, playback) {
+function attach(leg, stream, opts) {
   let dg;
   const tap = hub.addSource(stream, (buf) => {
     if (!dg) return;
     dg.sendPcm(buf);
-    frames[source]++;
-    if (frames[source] % 10 === 0) {
+    frames[leg]++;
+    if (frames[leg] % 10 === 0) {
       updateDiag();
       // keep the "listening…" frame counts live until real text arrives
-      if (!utterances.length && !partials.me && !partials.interviewer) render();
+      if (!utterances.length && !partials.me.length && !partials.interviewer.length) render();
     }
-  }, { playback, onLevel: (a) => setLevel(source, a) });
+  }, { playback: opts.playback, onLevel: (a) => setLevel(leg, a) });
   dg = openDeepgram(
-    { key: settings.deepgramKey, model: "nova-3", language: settings.language, sampleRate: hub.sampleRate },
-    { onOpen: () => { dgOpen[source] = true; updateDiag(); },
-      onPartial: (t) => setPartial(source, t), onFinal: (t) => addFinal(source, t),
-      onError: (m) => status(source + ": " + m, true) }
+    { key: settings.deepgramKey, model: "nova-3", language: settings.language,
+      sampleRate: hub.sampleRate, diarize: opts.diarize },
+    { onOpen: () => { dgOpen[leg] = true; updateDiag(); },
+      onPartial: (segs) => setPartial(leg, segs), onFinal: (segs) => addFinal(leg, segs),
+      onError: (m) => status(leg + ": " + m, true) }
   );
   sources.push({ stop() { try { tap.stop(); } catch {} try { dg.close(); } catch {} } });
+}
+
+async function micPermissionState() {
+  try { return (await navigator.permissions.query({ name: "microphone" })).state; }
+  catch { return "unknown"; }
+}
+
+// echoCancellation earns its keep when you're on speakers: without it the mic
+// re-hears the call and every interviewer line lands twice.
+async function attachMic() {
+  if (micAttached) return true;
+  micState.ok = false; micState.msg = "";
+  try {
+    const mic = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    attach("me", mic, { playback: false, diarize: false });
+    micAttached = true;
+    micState.ok = true;
+    $("micBtn").classList.add("hidden");
+    return true;
+  } catch (e) {
+    // Chrome won't show the mic prompt in a side panel, so point at the helper.
+    micState.msg = e.name === "NotAllowedError"
+      ? "press “🎤 Fix microphone access” below"
+      : (e.message || String(e));
+    $("micBtn").classList.remove("hidden");
+    return false;
+  }
 }
 
 async function start() {
@@ -141,35 +242,30 @@ async function start() {
     setState("stopped");
     return status("Audio init failed: " + e.message, true);
   }
+  // A new capture session is a new speaker-index space — carrying the old map over
+  // would silently pin a fresh voice to the previous call's label.
+  utterances.length = 0;
+  partials.me = []; partials.interviewer = [];
+  speakerOrdinals.clear();
+  micAttached = false;
   frames.me = 0; frames.interviewer = 0;
   dgOpen.me = false; dgOpen.interviewer = false;
   updateDiag();
 
-  // your mic -> "Me" (best-effort; the interviewer's audio is the tab, below)
-  micState.ok = false; micState.msg = "";
-  try {
-    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-    attach("me", mic, false);
-    micState.ok = true;
-    $("micBtn").classList.add("hidden");
-  } catch (e) {
-    // Chrome won't show the mic prompt in a side panel, so point at the helper.
-    micState.msg = e.name === "NotAllowedError"
-      ? "press “🎤 Fix microphone access” below"
-      : (e.message || String(e));
-    $("micBtn").classList.remove("hidden");
+  // your mic -> "Me" (best-effort; the far end is the tab, below)
+  if (!(await attachMic())) {
     status("Mic off — " + micState.msg + ". The call tab is still transcribed.", true);
   }
   render();
 
-  // the meeting tab -> "Interviewer"
+  // the meeting tab -> the far end, diarized into separate voices
   const resp = await chrome.runtime.sendMessage({ target: "background", cmd: "getStreamId" });
   if (!resp || !resp.ok) return status("Tab capture failed: " + (resp?.error || "unknown"), true);
   try {
     const tab = await navigator.mediaDevices.getUserMedia({
       audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: resp.streamId } },
     });
-    attach("interviewer", tab, true);        // playback so you still hear the call
+    attach("interviewer", tab, { playback: true, diarize: true });  // playback so you still hear the call
     status("Capturing: " + (resp.tabTitle || "active tab"));
   } catch (e) {
     status("Tab capture failed: " + e.message, true);
@@ -181,6 +277,7 @@ function stop() {
   sources = [];
   try { hub && hub.close(); } catch {}
   hub = null;
+  micAttached = false;
   setState("stopped");
   updateDiag();
 }
@@ -257,10 +354,19 @@ function status(msg, isErr) {
   el.style.color = isErr ? "var(--red)" : "var(--muted)";
 }
 
-// Open the helper page in a real tab — the side panel can't raise the mic prompt.
-function openMicPermission() {
+// The side panel can't raise the mic prompt, so mic.html does it in a real tab.
+// Once the grant exists we bind to the LIVE hub — demanding a Stop → Start round
+// trip was the dead end that left the "you" leg at 0 frames.
+async function onMicBtn() {
+  if (recording && hub && !micAttached && (await micPermissionState()) === "granted") {
+    if (await attachMic()) {
+      status("Mic live — your voice is labelled Me from here on.");
+      render();
+      return;
+    }
+  }
   chrome.tabs.create({ url: chrome.runtime.getURL("mic.html") });
-  status("Granted the mic in that tab? Come back and press Stop → Start.");
+  status("Granted the mic in that tab? Come back and press “Fix microphone access” again.");
 }
 
 // ---- wire up ----
@@ -269,7 +375,7 @@ $("ackBtn").addEventListener("click", () => $("gate").classList.add("hidden"));
 $("startBtn").addEventListener("click", start);
 $("stopBtn").addEventListener("click", stop);
 $("helpBtn").addEventListener("click", help);
-$("micBtn").addEventListener("click", openMicPermission);
+$("micBtn").addEventListener("click", onMicBtn);
 $("saveBtn").addEventListener("click", saveSettings);
 $("context").addEventListener("change", saveSettings);
 
