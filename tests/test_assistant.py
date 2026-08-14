@@ -1,6 +1,6 @@
 import pytest
 
-from interview_copilot.assistant import (DEFAULT_OLLAMA_MODEL, ApiAssistant, Assistant,
+from meeting_copilot.assistant import (DEFAULT_OLLAMA_MODEL, ApiAssistant, Assistant,
                                          AssistantError, ChainAssistant, CliAssistant,
                                          OllamaAssistant)
 

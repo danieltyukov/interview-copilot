@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from interview_copilot.session import Session, State, fmt_clock
+from meeting_copilot.session import Session, State, fmt_clock
 
 
 def test_recording_gates_utterances():
@@ -13,7 +13,7 @@ def test_recording_gates_utterances():
     assert len(s.utterances) == 1
 
 
-def test_latest_question_prefers_interviewer():
+def test_latest_question_prefers_other_speaker():
     s = Session()
     s.start()
     s.add_utterance(1.0, "A", "I am the candidate")
@@ -36,7 +36,7 @@ def test_speaker_naming():
     s = Session()
     s.set_me("A")
     assert s.speaker_name("A") == "Me"
-    assert s.speaker_name("B") == "Interviewer"
+    assert s.speaker_name("B") == "Speaker B"
     s.set_me(None)
     assert s.speaker_name("A") == "Speaker A"
 
@@ -45,20 +45,20 @@ def test_export_markdown_and_file(tmp_path):
     s = Session()
     s.start(now=datetime(2026, 6, 14, 10, 0, 0))
     s.add_utterance(0.0, "B", "Tell me about this project.")
-    s.add_utterance(5.0, "A", "It is an interview copilot.")
-    s.add_assist(6.0, "Tell me about this project.", "I built an interview copilot…")
+    s.add_utterance(5.0, "A", "It is a meeting copilot.")
+    s.add_assist(6.0, "Tell me about this project.", "I built a meeting copilot…")
     s.set_me("A")
     s.end(now=datetime(2026, 6, 14, 10, 1, 30))
 
     md = s.export_markdown(tmp_path)
-    assert "# Interview transcript" in md
+    assert "# Meeting transcript" in md
     assert "Tell me about this project." in md
     assert "Copilot assists" in md
     assert "Duration:** 01:30" in md
 
     dest = s.write_export(tmp_path)
     assert dest.exists()
-    assert dest.name.startswith("interview-")
+    assert dest.name.startswith("meeting-")
     assert dest.read_text().strip() == md.strip()
 
 

@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "interview-copilot"
-version = "0.1.1"
-description = "Sparky — live, on-device in-person interview copilot: transcribe the room and draft first-person answers from your project's context."
+name = "meeting-copilot"
+version = "0.2.0"
+description = "Sparky — live, on-device in-person meeting copilot: transcribe the room and draft first-person answers from your project's context."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -21,7 +21,7 @@ dependencies = [
 dev = ["pytest>=7"]
 
 [project.scripts]
-interview-copilot = "interview_copilot.cli:main"
+meeting-copilot = "meeting_copilot.cli:main"
 
 [tool.setuptools]
-packages = ["interview_copilot"]
+packages = ["meeting_copilot"]

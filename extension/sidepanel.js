@@ -2,7 +2,7 @@
 // taps two legs:
 //   • your microphone -> "Me"
 //   • the meeting tab  -> the far end, split by Deepgram diarization into
-//     "Interviewer 1", "Interviewer 2", … (plain "Interviewer" while there's one)
+//     "Speaker 1", "Speaker 2", … (plain "Speaker" while there's one)
 // Each leg streams to its own Deepgram connection; answers come from Claude.
 
 const API_MODEL_IDS = { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-4-6", opus: "claude-opus-4-8" };
@@ -13,7 +13,7 @@ Rules:
 - First person, the words I'd say out loud. No preamble, no meta-commentary.
 - Concise and natural — speakable in ~20-40 seconds.
 - Be concrete and specific to my context when relevant.
-- Several people may be on the call; "Interviewer 1/2/…" are different voices.
+- Several people may be on the call; "Speaker 1/2/…" are different voices.
 - If the message has a line starting with "MY EXTRA INSTRUCTION:", follow it closely.`;
 
 const $ = (id) => document.getElementById(id);
@@ -41,20 +41,20 @@ if (!historyReady) {
   globalThis.escapeHtml ||= (s) => String(s).replace(/[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   globalThis.speakerLabel ||= (key, ord) => (key === "me" ? "Me"
-    : "Interviewer" + (Object.keys(ord || {}).length > 1 ? " " + (ord[key] || 1) : ""));
-  globalThis.speakerClass ||= (key) => (key === "me" ? "spk-Me" : "spk-Interviewer");
+    : "Speaker" + (Object.keys(ord || {}).length > 1 ? " " + (ord[key] || 1) : ""));
+  globalThis.speakerClass ||= (key) => (key === "me" ? "spk-Me" : "spk-Speaker");
   console.error("Sparky: history.js missing —", historyMissing.join(", "));
 }
 
 const utterances = [];                        // { key, text, t }
-const partials = { me: [], interviewer: [] }; // capture leg -> [{ speaker, text }]
+const partials = { me: [], them: [] }; // capture leg -> [{ speaker, text }]
 const speakerOrdinals = {};                   // "int:N" -> 1,2,3… in first-heard order
 let hub = null;
 let sources = [];                             // [{ stop() }]
 let recording = false;                        // drives the "listening…" placeholder
 let micAttached = false;
-const frames = { me: 0, interviewer: 0 };     // keyed by LEG, not by speaker
-const dgOpen = { me: false, interviewer: false };
+const frames = { me: 0, them: 0 };     // keyed by LEG, not by speaker
+const dgOpen = { me: false, them: false };
 const micState = { ok: false, msg: "" };      // mic is best-effort; tab audio is primary
 
 function updateDiag() {
@@ -63,12 +63,12 @@ function updateDiag() {
   const cap = hub && hub.usingWorklet ? (hub.usingWorklet() ? "worklet" : "scriptproc") : "—";
   $("diag").textContent =
     `ctx:${st}@${rate}Hz ${cap} · you ${frames.me}f ${dgOpen.me ? "dg✓" : "dg…"} · ` +
-    `them ${frames.interviewer}f ${dgOpen.interviewer ? "dg✓" : "dg…"}`;
+    `them ${frames.them}f ${dgOpen.them ? "dg✓" : "dg…"}`;
 }
 
 // ---- speaker identity ----
 // A capture leg plus Deepgram's speaker index resolve to a stable key. Labels are
-// derived at render time, so a 1:1 call reads "Interviewer" and every line upgrades
+// derived at render time, so a 1:1 call reads "Speaker" and every line upgrades
 // to numbered labels the moment a second voice is heard. speakerLabel/speakerClass
 // live in history.js so a reopened transcript labels itself exactly like the live one.
 function speakerKey(leg, speaker) {
@@ -83,7 +83,7 @@ function cls(key) { return speakerClass(key, speakerOrdinals); }
 
 // ---- echo guard ----
 // On speakers the mic re-hears the call, and any leak of your voice into the tab
-// stream would surface as a brand-new "interviewer". Both show up as the same line
+// stream would surface as a brand-new speaker on the call. Both show up as one line
 // arriving on both legs within a beat, so drop whichever copy lands second.
 const ECHO_WINDOW_MS = 6000;
 const ECHO_SIMILARITY = 0.6;
@@ -134,10 +134,10 @@ async function saveSettings() {
 // ---- transcript ----
 function render() {
   const box = $("transcript");
-  if (!utterances.length && !partials.me.length && !partials.interviewer.length) {
+  if (!utterances.length && !partials.me.length && !partials.them.length) {
     if (recording) {
-      const them = frames.interviewer > 0
-        ? `<b>them</b> ✓ hearing the call (${frames.interviewer} frames)`
+      const them = frames.them > 0
+        ? `<b>them</b> ✓ hearing the call (${frames.them} frames)`
         : `<b>them</b> … waiting for the call tab — is audio actually playing in it?`;
       const you = micState.ok
         ? `<b>you</b> ✓ mic live (${frames.me} frames)`
@@ -154,7 +154,7 @@ function render() {
   const rows = utterances.map(
     (u) => `<div class="line"><span class="${cls(u.key)}">${labelFor(u.key)}:</span> ${escapeHtml(u.text)}</div>`
   );
-  for (const leg of ["interviewer", "me"]) {
+  for (const leg of ["them", "me"]) {
     for (const seg of partials[leg]) {
       if (!seg.text.trim()) continue;
       rows.push(`<div class="line partial">${labelFor(speakerKey(leg, seg.speaker))}: ${escapeHtml(seg.text)} ▌</div>`);
@@ -198,7 +198,7 @@ function setState(state) {
   $("dot").className = "dot " + state;
   $("startBtn").disabled = state === "recording";
   $("stopBtn").disabled = state !== "recording";
-  if (state !== "recording") { setLevel("me", false); setLevel("interviewer", false); }
+  if (state !== "recording") { setLevel("me", false); setLevel("them", false); }
   render();   // reflect listening / idle placeholder immediately
 }
 
@@ -211,7 +211,7 @@ function attach(leg, stream, opts) {
     if (frames[leg] % 10 === 0) {
       updateDiag();
       // keep the "listening…" frame counts live until real text arrives
-      if (!utterances.length && !partials.me.length && !partials.interviewer.length) render();
+      if (!utterances.length && !partials.me.length && !partials.them.length) render();
     }
   }, { playback: opts.playback, onLevel: (a) => setLevel(leg, a) });
   dg = openDeepgram(
@@ -230,7 +230,7 @@ async function micPermissionState() {
 }
 
 // echoCancellation earns its keep when you're on speakers: without it the mic
-// re-hears the call and every interviewer line lands twice.
+// re-hears the call and every line from the far end lands twice.
 async function attachMic() {
   if (micAttached) return true;
   micState.ok = false; micState.msg = "";
@@ -265,12 +265,12 @@ async function start() {
   // A new capture session is a new speaker-index space — carrying the old map over
   // would silently pin a fresh voice to the previous call's label.
   utterances.length = 0;
-  partials.me = []; partials.interviewer = [];
+  partials.me = []; partials.them = [];
   for (const k of Object.keys(speakerOrdinals)) delete speakerOrdinals[k];
   if (historyReady) beginSession({});        // the tab title arrives below, once capture starts
   micAttached = false;
-  frames.me = 0; frames.interviewer = 0;
-  dgOpen.me = false; dgOpen.interviewer = false;
+  frames.me = 0; frames.them = 0;
+  dgOpen.me = false; dgOpen.them = false;
   updateDiag();
 
   // your mic -> "Me" (best-effort; the far end is the tab, below)
@@ -286,7 +286,7 @@ async function start() {
     const tab = await navigator.mediaDevices.getUserMedia({
       audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: resp.streamId } },
     });
-    attach("interviewer", tab, { playback: true, diarize: true });  // playback so you still hear the call
+    attach("them", tab, { playback: true, diarize: true });  // playback so you still hear the call
     if (historyReady) noteSessionSource(resp.tabTitle);
     status("Capturing: " + (resp.tabTitle || "active tab"));
   } catch (e) {

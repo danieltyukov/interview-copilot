@@ -1,8 +1,8 @@
-"""Full-screen terminal UI for the interview copilot.
+"""Full-screen terminal UI for the meeting copilot.
 
 A `rich` dashboard renders the live transcript while a raw-mode keyboard reader
 on a side thread captures single keypresses (start / end / help / mark / quit).
-All interview control is by keypress — nothing is voice-activated. The UI only
+All meeting control is by keypress — nothing is voice-activated. The UI only
 reads state the engine publishes via events, so it never blocks the audio or
 the answer-generation work, which run on their own threads.
 """
@@ -29,7 +29,7 @@ from rich.text import Text
 from .engine import CopilotEngine
 from .session import fmt_clock
 
-SPEAKER_STYLE = {"Me": "bold green", "Interviewer": "bold cyan",
+SPEAKER_STYLE = {"Me": "bold green",
                  "Speaker A": "bold cyan", "Speaker B": "bold magenta",
                  "Speaker ?": "white"}
 
@@ -128,7 +128,7 @@ class CopilotTUI:
             elif t == "info":
                 self._set_status(e["msg"], "dim")
             elif t == "ready":
-                self._set_status("Ready. Press 's' to start the interview.", "bold")
+                self._set_status("Ready. Press 's' to start the meeting.", "bold")
             elif t == "error":
                 self._set_status(e["msg"], "bold red")
 
@@ -328,10 +328,10 @@ class CopilotTUI:
         elif low == "s":
             if self.state != "recording":
                 # Threaded: opening the Deepgram stream can block ~6s.
-                threading.Thread(target=self.engine.start_interview, daemon=True).start()
+                threading.Thread(target=self.engine.start_meeting, daemon=True).start()
         elif low == "e":
             if self.state == "recording":
-                threading.Thread(target=self.engine.end_interview, daemon=True).start()
+                threading.Thread(target=self.engine.end_meeting, daemon=True).start()
         elif low == "h":
             note, self.note = self.note, ""        # consume the queued note (one-shot)
             threading.Thread(target=self.engine.request_help, args=(note,), daemon=True).start()
@@ -363,10 +363,10 @@ class CopilotTUI:
                     time.sleep(0.12)
         finally:
             if self.state == "recording":
-                self.engine.end_interview()
+                self.engine.end_meeting()
             self.engine.stop()
 
         # Leave the user with the last answer + where the transcript went.
         if self.answer:
             self.console.print(Panel(self.answer, title="Last drafted answer", border_style="green"))
-        self.console.print("[dim]Sparky — interview copilot closed.[/]")
+        self.console.print("[dim]Sparky — meeting copilot closed.[/]")

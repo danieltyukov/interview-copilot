@@ -3,7 +3,7 @@
 A background thread periodically opens a short TCP connection to a few well-known
 hosts. The first that connects means we're online. It calls ``on_change(online)``
 only on transitions, so the engine can re-route (cloud ↔ local) and the UI can
-show a live marker — even when WiFi drops mid-interview.
+show a live marker — even when WiFi drops mid-meeting.
 """
 
 from __future__ import annotations

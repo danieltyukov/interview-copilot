@@ -6,12 +6,12 @@ __pycache__/
 .venv/
 venv/
 
-# Local config / secrets (keys live in ~/.config/interview-copilot/config.env)
+# Local config / secrets (keys live in ~/.config/meeting-copilot/config.env)
 config.env
 *.env
 
 # App output
-interview-*.md
+meeting-*.md
 
 # Editor / tooling
 .claude/

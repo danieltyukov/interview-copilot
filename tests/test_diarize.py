@@ -1,6 +1,6 @@
 import numpy as np
 
-from interview_copilot.diarize import Diarizer, embedding, _pitch
+from meeting_copilot.diarize import Diarizer, embedding, _pitch
 
 SR = 16000
 

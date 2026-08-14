@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the interview-copilot command so you can launch it in any directory,
+# Install the meeting-copilot command so you can launch it in any directory,
 # the same way you launch claude. Creates a venv, installs the package into it,
 # and symlinks the launcher onto your PATH.
 set -euo pipefail
@@ -23,17 +23,17 @@ echo "==> Installing package (this pulls faster-whisper, may take a minute)"
 
 echo "==> Linking launcher into $BIN_DIR"
 mkdir -p "$BIN_DIR"
-ln -sf "$VENV/bin/interview-copilot" "$BIN_DIR/interview-copilot"
+ln -sf "$VENV/bin/meeting-copilot" "$BIN_DIR/meeting-copilot"
 
 echo
-echo "Done. 'interview-copilot' is installed."
+echo "Done. 'meeting-copilot' is installed."
 case ":$PATH:" in
-  *":$BIN_DIR:"*) echo "You can run it now from any directory:  interview-copilot" ;;
-  *) echo "Add $BIN_DIR to your PATH, then run:  interview-copilot"
+  *":$BIN_DIR:"*) echo "You can run it now from any directory:  meeting-copilot" ;;
+  *) echo "Add $BIN_DIR to your PATH, then run:  meeting-copilot"
      echo "  echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.bashrc && source ~/.bashrc" ;;
 esac
 echo
 echo "Transcription uses Deepgram streaming by default. Put your key in:"
-echo "  ~/.config/interview-copilot/config.env   ->   DEEPGRAM_API_KEY=..."
-echo "Or run fully offline with:  interview-copilot --stt local   (downloads Whisper ~140MB)"
-echo "Check everything with:  interview-copilot --self-test"
+echo "  ~/.config/meeting-copilot/config.env   ->   DEEPGRAM_API_KEY=..."
+echo "Or run fully offline with:  meeting-copilot --stt local   (downloads Whisper ~140MB)"
+echo "Check everything with:  meeting-copilot --self-test"

@@ -1,4 +1,4 @@
-"""Command-line entry point: ``interview-copilot``.
+"""Command-line entry point: ``meeting-copilot``.
 
 Run it inside any project directory. Default launches the live TUI on your
 microphone, transcribing via Deepgram streaming when a key is configured (or
@@ -18,11 +18,11 @@ from . import __version__
 from .assistant import DEFAULT_OLLAMA_MODEL
 from .engine import CopilotEngine, EngineConfig
 
-CONFIG_ENV = Path.home() / ".config" / "interview-copilot" / "config.env"
+CONFIG_ENV = Path.home() / ".config" / "meeting-copilot" / "config.env"
 
 
 def load_config_env() -> None:
-    """Merge ~/.config/interview-copilot/config.env into the environment.
+    """Merge ~/.config/meeting-copilot/config.env into the environment.
 
     Existing environment variables win, so an explicit export overrides the file.
     """
@@ -41,8 +41,8 @@ def load_config_env() -> None:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="interview-copilot",
-        description="Sparky — live interview copilot: transcribe the room and draft "
+        prog="meeting-copilot",
+        description="Sparky — live meeting copilot: transcribe the room and draft "
                     "first-person answers from your project's context.",
     )
     p.add_argument("dir", nargs="?", default=".",
@@ -84,7 +84,7 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Check ffmpeg, Claude CLI, the STT backend and context, then exit.")
     p.add_argument("--print-context", action="store_true",
                    help="Print the gathered directory context and exit.")
-    p.add_argument("--version", action="version", version=f"interview-copilot {__version__}")
+    p.add_argument("--version", action="version", version=f"meeting-copilot {__version__}")
     return p
 
 
@@ -224,9 +224,9 @@ def _run_headless(args) -> int:
     # can consume as fast as it likes.
     realtime = engine.cfg.stt_backend == "deepgram"
     engine.prepare()
-    engine.start_interview()
+    engine.start_meeting()
     engine.run(FileSource(args.audio_file, realtime=realtime))  # blocks until the file ends
-    engine.end_interview()  # finish() drains pending streaming finals
+    engine.end_meeting()  # finish() drains pending streaming finals
     return 0
 
 

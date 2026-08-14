@@ -3,6 +3,10 @@
 Date: 2026-08-12
 Scope: `extension/` only. The terminal CLI keeps its current single-stream behaviour.
 
+> Historical record, kept as written. The project has since been renamed to
+> `meeting-copilot` and the far-end speaker label `Interviewer N` is now
+> `Speaker N`. Names below describe the code as it stood on 2026-08-12.
+
 ## Problem
 
 The side panel infers speaker identity from the capture leg alone: microphone means

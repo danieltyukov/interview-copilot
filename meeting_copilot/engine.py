@@ -175,8 +175,8 @@ class CopilotEngine:
     def _elapsed(self) -> float:
         return (time.monotonic() - self._start_mono) if self._start_mono else 0.0
 
-    # -- interview control (keypress-driven) -------------------------------
-    def start_interview(self) -> None:
+    # -- meeting control (keypress-driven) -------------------------------
+    def start_meeting(self) -> None:
         try:
             with self._lock:
                 backend = self._make_backend()   # may raise (e.g. missing key)
@@ -190,7 +190,7 @@ class CopilotEngine:
             self._start_mono = time.monotonic()
         self._emit("state", state=self.session.state.value)
 
-    def end_interview(self) -> Path | None:
+    def end_meeting(self) -> Path | None:
         with self._lock:
             was_recording = self.session.is_recording
             backend = self.backend
@@ -291,7 +291,7 @@ class CopilotEngine:
             question = self.session.latest_question()
             transcript = self.session.transcript_text()
         if question is None:
-            self._emit("info", msg="No question captured yet — start the interview first.")
+            self._emit("info", msg="No question captured yet — start the meeting first.")
             return
         self._emit("help_started", question=question.text, note=note)
         try:

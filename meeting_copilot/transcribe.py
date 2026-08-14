@@ -1,6 +1,6 @@
 """Local speech-to-text via faster-whisper (CTranslate2).
 
-Runs entirely on-device, which is the whole point for a confidential interview:
+Runs entirely on-device, which is the whole point for a confidential meeting:
 no audio leaves the machine and no API key is needed. ``int8`` compute keeps it
 quick on a CPU-only box, and because we already cut audio into tight utterances
 upstream we transcribe each chunk greedily (``beam_size=1``) for low latency.

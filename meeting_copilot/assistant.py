@@ -9,7 +9,7 @@ Three pieces share one interface (``answer(ctx, transcript, q, note, on_delta)``
   key needed; works with whatever auth Claude Code already has.
 * ``FallbackAssistant`` — wraps a primary and a secondary. Tries the primary; on
   *any* failure (missing key, billing, network, empty result) it signals the UI
-  and re-streams from the secondary — even mid-interview.
+  and re-streams from the secondary — even mid-meeting.
 
 This keeps the room covered: the API gives speed, the CLI guarantees an answer.
 """
@@ -26,17 +26,18 @@ import urllib.error
 import urllib.request
 from typing import Callable
 
-SYSTEM_RULES = """You are my real-time interview copilot. I am being interviewed in person, \
-in front of the project described in the user's message. Read the project context and the live \
-transcript, then draft MY answer to the interviewer's latest question.
+SYSTEM_RULES = """You are my real-time meeting copilot. I am in a live conversation in person, \
+about the project described in the user's message. Read the project context and the live \
+transcript, then draft MY reply to the latest question put to me.
 
 Rules:
 - Write in the FIRST PERSON, as the words I should say out loud. No preamble, no \
 meta-commentary, no "you could say" — just my answer.
 - Keep it concise and natural: something I can speak in roughly 20-40 seconds.
 - Be concrete and specific to THIS project; cite real details from the context when relevant.
-- For behavioral or general questions, answer confidently and honestly the way an engineer \
+- For behavioral or open-ended questions, answer confidently and honestly the way an engineer \
 who built this project would.
+- Several people may be in the room; "Speaker A", "Speaker B" and so on are different voices.
 - If the message contains a line starting with "MY EXTRA INSTRUCTION:", treat it as the most \
 important steer for what I want from the answer, and follow it closely.
 - Do not use any tools. Answer directly from what is provided."""

@@ -2,8 +2,8 @@ from pathlib import Path
 
 import numpy as np
 
-from interview_copilot.audio import FRAME_SAMPLES
-from interview_copilot.engine import CopilotEngine, EngineConfig
+from meeting_copilot.audio import FRAME_SAMPLES
+from meeting_copilot.engine import CopilotEngine, EngineConfig
 
 
 class FakeSource:
@@ -56,9 +56,9 @@ def _engine(tmp_path, **kw):
 
 def test_pipeline_emits_utterance_and_exports(tmp_path):
     eng, events = _engine(tmp_path)
-    eng.start_interview()
+    eng.start_meeting()
     eng.run(FakeSource(_scripted_frames()))
-    path = eng.end_interview()  # finish() drains the worker
+    path = eng.end_meeting()  # finish() drains the worker
 
     utts = [e for e in events if e["type"] == "utterance"]
     assert len(utts) == 1
@@ -70,7 +70,7 @@ def test_pipeline_emits_utterance_and_exports(tmp_path):
 
 def test_ignores_audio_when_not_recording(tmp_path):
     eng, events = _engine(tmp_path)
-    # never call start_interview -> no backend, feed is skipped
+    # never call start_meeting -> no backend, feed is skipped
     eng.run(FakeSource(_scripted_frames()))
     assert [e for e in events if e["type"] == "utterance"] == []
 
@@ -78,13 +78,13 @@ def test_ignores_audio_when_not_recording(tmp_path):
 def test_request_help_uses_assistant(tmp_path, monkeypatch):
     eng, events = _engine(tmp_path)
     eng.context = "PROJECT CONTEXT"
-    eng.start_interview()
+    eng.start_meeting()
     eng.session.add_utterance(1.0, "B", "What did you build?")
 
     monkeypatch.setattr(eng.assistant, "answer",
                         lambda ctx, tr, q, note="", on_delta=None: f"I built it. ({q}) [{note}]")
     eng.request_help(note="focus on the data layer")
-    eng.end_interview()
+    eng.end_meeting()
 
     helps = [e for e in events if e["type"] == "help"]
     assert len(helps) == 1
@@ -104,7 +104,7 @@ def test_cycle_answer_model(tmp_path):
 
 
 def test_api_primary_when_key_present(tmp_path):
-    from interview_copilot.assistant import ChainAssistant
+    from meeting_copilot.assistant import ChainAssistant
     cfg = EngineConfig(root=tmp_path, anthropic_api_key="sk-test")
     eng = CopilotEngine(cfg)
     assert eng.answer_primary == "api"
@@ -122,7 +122,7 @@ def test_cli_primary_without_key(tmp_path, monkeypatch):
 
 def test_offline_routes_stt_and_answers_local(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    from interview_copilot.backends import LocalBackend
+    from meeting_copilot.backends import LocalBackend
     cfg = EngineConfig(root=tmp_path, stt_backend="deepgram", deepgram_api_key="x")
     events = []
     eng = CopilotEngine(cfg, on_event=events.append)
@@ -151,9 +151,9 @@ def test_export_falls_back_when_launch_dir_missing(tmp_path, monkeypatch):
 
 def test_request_help_without_question(tmp_path):
     eng, events = _engine(tmp_path)
-    eng.start_interview()
+    eng.start_meeting()
     eng.request_help()
-    eng.end_interview()
+    eng.end_meeting()
     assert any(e["type"] == "info" for e in events)
     assert not any(e["type"] == "help" for e in events)
 
@@ -170,7 +170,7 @@ def test_cycle_me(tmp_path):
 
 
 def test_engine_builds_stt_fallback(tmp_path):
-    from interview_copilot.backends import FallbackSttBackend
+    from meeting_copilot.backends import FallbackSttBackend
     cfg = EngineConfig(root=tmp_path, stt_backend="deepgram",
                        deepgram_api_key="x", stt_fallback=True)
     eng = CopilotEngine(cfg)
@@ -179,7 +179,7 @@ def test_engine_builds_stt_fallback(tmp_path):
 
 
 def test_engine_stt_fallback_disabled(tmp_path):
-    from interview_copilot.backends import DeepgramBackend
+    from meeting_copilot.backends import DeepgramBackend
     cfg = EngineConfig(root=tmp_path, stt_backend="deepgram",
                        deepgram_api_key="x", stt_fallback=False)
     eng = CopilotEngine(cfg)
@@ -190,11 +190,11 @@ def test_engine_stt_fallback_disabled(tmp_path):
 def test_help_reports_served_backend(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     eng, events = _engine(tmp_path)   # local STT + CLI answers
-    eng.start_interview()
+    eng.start_meeting()
     eng.session.add_utterance(1.0, "B", "Q?")
     monkeypatch.setattr(eng.assistant, "answer",
                         lambda c, t, q, note="", on_delta=None: "An answer.")
     eng.request_help()
-    eng.end_interview()
+    eng.end_meeting()
     helps = [e for e in events if e["type"] == "help"]
     assert helps and helps[0]["served"] == "cli"

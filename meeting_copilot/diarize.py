@@ -1,7 +1,7 @@
 """Best-effort two-speaker diarization.
 
 True speaker diarization needs a trained neural embedder; that's heavy on a
-CPU-only box and overkill for "tell me apart from the interviewer". Instead we
+CPU-only box and overkill for "tell me apart from everyone else". Instead we
 build a cheap per-utterance fingerprint from the MFCC envelope plus median
 pitch and voicing ratio (pitch is the single most useful cue for separating two
 people), then cluster utterances into two groups.

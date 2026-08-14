@@ -29,7 +29,7 @@ main { flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: co
 .transcript .line { margin: 2px 0; }
 .spk-Me { color: var(--teal); font-weight: 600; }
 /* One colour per diarized far-end voice, cycled in first-heard order. */
-.spk-Interviewer { color: var(--cyan); font-weight: 600; }
+.spk-Speaker { color: var(--cyan); font-weight: 600; }
 .spk-other { color: var(--magenta); font-weight: 600; }
 .spk-int3 { color: var(--amber); font-weight: 600; }
 .spk-int4 { color: var(--brand); font-weight: 600; }

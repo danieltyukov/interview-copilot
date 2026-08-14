@@ -4,10 +4,10 @@ import threading
 import numpy as np
 import pytest
 
-from interview_copilot.audio import FRAME_SAMPLES, UtteranceSegmenter
-from interview_copilot.backends import (DeepgramBackend, FallbackSttBackend,
+from meeting_copilot.audio import FRAME_SAMPLES, UtteranceSegmenter
+from meeting_copilot.backends import (DeepgramBackend, FallbackSttBackend,
                                         LocalBackend, _speaker_label)
-from interview_copilot.diarize import Diarizer
+from meeting_copilot.diarize import Diarizer
 
 
 def test_speaker_label_majority():

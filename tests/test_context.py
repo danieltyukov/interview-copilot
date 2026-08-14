@@ -1,4 +1,4 @@
-from interview_copilot.context import gather_context
+from meeting_copilot.context import gather_context
 
 
 def test_gathers_key_files_and_tree(tmp_path):

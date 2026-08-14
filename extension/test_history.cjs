@@ -60,11 +60,11 @@ async function main() {
     const { ctx } = load();
     check("my own leg is Me", ctx.speakerLabel("me", {}) === "Me");
     check("a lone far-end voice is not numbered",
-      ctx.speakerLabel("int:0", { "int:0": 1 }) === "Interviewer",
+      ctx.speakerLabel("int:0", { "int:0": 1 }) === "Speaker",
       ctx.speakerLabel("int:0", { "int:0": 1 }));
     const two = { "int:0": 1, "int:1": 2 };
     check("two voices are numbered in first-heard order",
-      ctx.speakerLabel("int:0", two) === "Interviewer 1" && ctx.speakerLabel("int:1", two) === "Interviewer 2");
+      ctx.speakerLabel("int:0", two) === "Speaker 1" && ctx.speakerLabel("int:1", two) === "Speaker 2");
     check("distinct voices get distinct colours",
       ctx.speakerClass("int:0", two) !== ctx.speakerClass("int:1", two));
     check("my colour is my own", ctx.speakerClass("me", two) === "spk-Me");
@@ -169,7 +169,7 @@ async function main() {
     const [s] = await ctx.listSessions();
     const lines = ctx.sessionLines(s);
     check("a two-voice session reopens with numbered labels",
-      lines[0].label === "Interviewer 1" && lines[1].label === "Interviewer 2" && lines[2].label === "Me",
+      lines[0].label === "Speaker 1" && lines[1].label === "Speaker 2" && lines[2].label === "Me",
       JSON.stringify(lines.map((l) => l.label)));
     check("voice count is reported", ctx.sessionMeta(s).includes("2 voices"), ctx.sessionMeta(s));
     check("meta carries the date and the line count",
@@ -189,12 +189,12 @@ async function main() {
     const s = await ctx.endSession();
     const txt = ctx.sessionText(s);
     check("copy text labels every line",
-      /Interviewer: How do you handle schema migrations\?\nMe: Expand and contract, with a backfill step\./.test(txt), txt);
+      /Speaker: How do you handle schema migrations\?\nMe: Expand and contract, with a backfill step\./.test(txt), txt);
     check("copy text opens with the title", txt.startsWith(s.title), txt.slice(0, 60));
 
     const md = ctx.sessionMarkdown(s);
     check("markdown has the title as an h1", md.startsWith("# " + s.title + "\n"), md.slice(0, 80));
-    check("markdown bolds each speaker", /\*\*Interviewer:\*\* How do you handle/.test(md), md);
+    check("markdown bolds each speaker", /\*\*Speaker:\*\* How do you handle/.test(md), md);
     check("markdown records where it came from", /Source: Meet/.test(md), md);
 
     const name = ctx.sessionFilename(s);
@@ -228,9 +228,9 @@ async function main() {
     }
     let saved = await ctx.listSessions();
     const id = saved[0].id;
-    await ctx.renameSession(id, "  Backend interview  ");
+    await ctx.renameSession(id, "  Backend sync  ");
     saved = await ctx.listSessions();
-    check("rename trims and sticks", saved[0].title === "Backend interview", saved[0].title);
+    check("rename trims and sticks", saved[0].title === "Backend sync", saved[0].title);
     check("a hand-typed title is not a guess any more", saved[0].titleSource === "user", saved[0].titleSource);
 
     await ctx.deleteSession(id);
@@ -246,15 +246,15 @@ async function main() {
     let seen = null;
     const { ctx } = load(async (url, init) => {
       seen = { url, body: JSON.parse(init.body), headers: init.headers };
-      return { ok: true, async json() { return { content: [{ type: "text", text: "Backend interview: schema migrations\n" }] }; } };
+      return { ok: true, async json() { return { content: [{ type: "text", text: "Backend sync: schema migrations\n" }] }; } };
     });
     ctx.beginSession({ tabTitle: "Meet", startedAt: T(16, 0) });
     ctx.recordSession([{ key: "int:0", text: "How do you handle schema migrations?", t: T(16, 1) }], { "int:0": 1 });
     const s = await ctx.endSession();
     const title = await ctx.autoTitleSession(s.id, "sk-ant-test");
-    check("Claude's title replaces the quoted guess", title === "Backend interview: schema migrations", title);
+    check("Claude's title replaces the quoted guess", title === "Backend sync: schema migrations", title);
     const [stored] = await ctx.listSessions();
-    check("…and is persisted", stored.title === "Backend interview: schema migrations", stored.title);
+    check("…and is persisted", stored.title === "Backend sync: schema migrations", stored.title);
     check("…and marked as machine-written", stored.titleSource === "claude", stored.titleSource);
     check("titling uses the cheap model", seen.body.model === "claude-haiku-4-5", seen.body.model);
     check("titling asks for the browser-access header",

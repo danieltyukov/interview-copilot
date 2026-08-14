@@ -117,17 +117,17 @@ check("recording+empty reports waiting for the call tab", /waiting for the call/
 // 3) Query string: diarization is on for the tab leg and off for the mic leg.
 const me = connect({}, "me");
 check("mic leg asks Deepgram for no diarization", !/diarize/.test(me.ws.url), me.ws.url);
-const them = connect({ diarize: true }, "interviewer");
+const them = connect({ diarize: true }, "them");
 check("tab leg asks Deepgram for diarize=true", /diarize=true/.test(them.ws.url), them.ws.url);
 
-// 4) One voice on the call still reads as a plain "Interviewer" — no numbering noise
+// 4) One voice on the call still reads as a plain "Speaker" — no numbering noise
 //    on a 1:1, which is the common case.
 feed(them.ws, { transcript: "tell me about", words: diarizedWords([[0, "tell me about"]]) });
-check("interim frame shows a live partial", /Interviewer:.*tell me about.*▌/s.test(T()), T());
+check("interim frame shows a live partial", /Speaker:.*tell me about.*▌/s.test(T()), T());
 feed(them.ws, { transcript: "tell me about yourself", words: diarizedWords([[0, "Tell me about yourself"]]) }, { final: true });
-check("final frame commits an utterance", /class="spk-Interviewer">Interviewer:<\/span> Tell me about yourself/.test(T()), T());
+check("final frame commits an utterance", /class="spk-Speaker">Speaker:<\/span> Tell me about yourself/.test(T()), T());
 check("partial cleared after final", !/▌/.test(T()), T());
-check("single voice is not numbered", !/Interviewer 1/.test(T()), T());
+check("single voice is not numbered", !/Speaker 1/.test(T()), T());
 
 // 5) Your own leg is labelled Me and coloured separately.
 // (Apostrophes render as &#39; — escapeHtml covers quotes as well as tags, because
@@ -137,49 +137,49 @@ check("mic leg renders as Me", /spk-Me">Me:<\/span> Sure, here&#39;s a quick sum
 check("latestQuestion skips my own line", ctx.latestQuestion() === "Tell me about yourself", ctx.latestQuestion());
 
 // 6) A second far-end voice appears. Labels must upgrade to numbers RETROACTIVELY —
-//    the earlier speaker-0 line is now "Interviewer 1", not a stale "Interviewer".
+//    the earlier speaker-0 line is now "Speaker 1", not a stale "Speaker".
 feed(them.ws, { transcript: "what about scaling", words: diarizedWords([[1, "What about scaling?"]]) }, { final: true });
-check("second voice gets its own label", /Interviewer 2:<\/span> What about scaling\?/.test(T()), T());
-check("first voice renumbers retroactively", /Interviewer 1:<\/span> Tell me about yourself/.test(T()), T());
+check("second voice gets its own label", /Speaker 2:<\/span> What about scaling\?/.test(T()), T());
+check("first voice renumbers retroactively", /Speaker 1:<\/span> Tell me about yourself/.test(T()), T());
 check("distinct voices get distinct colours",
-  /spk-Interviewer">Interviewer 1/.test(T()) && /spk-other">Interviewer 2/.test(T()), T());
+  /spk-Speaker">Speaker 1/.test(T()) && /spk-other">Speaker 2/.test(T()), T());
 
 // 7) A speaker change INSIDE one Deepgram frame must split into two utterances,
 //    not concatenate into one mislabelled blob.
 feed(them.ws, { transcript: "and a third joins right here",
   words: diarizedWords([[2, "And a third joins"], [1, "right here."]]) }, { final: true });
-check("mid-frame speaker change splits", /Interviewer 3:<\/span> And a third joins/.test(T()), T());
-check("…and the tail lands on the right voice", /Interviewer 2:<\/span> right here\./.test(T()), T());
+check("mid-frame speaker change splits", /Speaker 3:<\/span> And a third joins/.test(T()), T());
+check("…and the tail lands on the right voice", /Speaker 2:<\/span> right here\./.test(T()), T());
 
 // 8) Echo guard. On speakers the mic re-hears the call, so the same line arrives on
 //    both legs — the second copy must be dropped rather than double-rendered.
-ctx.addFinal("interviewer", [{ speaker: 0, text: "How do you handle schema migrations in production?" }]);
+ctx.addFinal("them", [{ speaker: 0, text: "How do you handle schema migrations in production?" }]);
 ctx.addFinal("me", [{ speaker: null, text: "how do you handle schema migrations in production" }]);
 check("mic echo of the call is dropped",
   (T().match(/schema migrations/g) || []).length === 1, T().match(/schema migrations/g));
 
 // …and symmetrically: if your voice leaks into the tab stream, diarization would
-// file you as a brand-new interviewer. That copy must be dropped too.
+// file you as a brand-new speaker on the call. That copy must be dropped too.
 ctx.addFinal("me", [{ speaker: null, text: "I usually run expand and contract with a backfill step." }]);
-ctx.addFinal("interviewer", [{ speaker: 3, text: "I usually run expand and contract with a backfill step." }]);
+ctx.addFinal("them", [{ speaker: 3, text: "I usually run expand and contract with a backfill step." }]);
 check("my voice leaking into the tab stream is dropped",
   (T().match(/expand and contract/g) || []).length === 1, T().match(/expand and contract/g));
-check("the leak did not invent a new interviewer", !/Interviewer 4/.test(T()), T());
+check("the leak did not invent a new speaker", !/Speaker 4/.test(T()), T());
 
 // Short backchannels are NOT echo-suppressed — both sides genuinely say "yes".
-ctx.addFinal("interviewer", [{ speaker: 0, text: "Right, yes." }]);
+ctx.addFinal("them", [{ speaker: 0, text: "Right, yes." }]);
 ctx.addFinal("me", [{ speaker: null, text: "Right, yes." }]);
 check("short backchannels survive on both legs",
   (T().match(/Right, yes\./g) || []).length === 2, T().match(/Right, yes\./g));
 
 // 9) Claude's view of the conversation is labelled per voice and ordered.
 check("transcriptText names each voice",
-  /^Interviewer 1: Tell me about yourself\nMe: Sure, here's a quick summary\.\nInterviewer 2: What about scaling\?/.test(ctx.transcriptText()),
+  /^Speaker 1: Tell me about yourself\nMe: Sure, here's a quick summary\.\nSpeaker 2: What about scaling\?/.test(ctx.transcriptText()),
   JSON.stringify(ctx.transcriptText()));
 check("latestQuestion still skips Me", ctx.latestQuestion() === "Right, yes.", ctx.latestQuestion());
 
 // 10) HTML escaping (no injection from transcript text).
-ctx.addFinal("interviewer", [{ speaker: 0, text: "<script>alert(1)</script>" }]);
+ctx.addFinal("them", [{ speaker: 0, text: "<script>alert(1)</script>" }]);
 check("transcript escapes HTML", /&lt;script&gt;/.test(T()) && !/<script>alert/.test(T()), T());
 
 // 11) Layout: the help/answer box must sit ABOVE the live transcript in the markup
@@ -195,7 +195,7 @@ check("answer box is rendered above the transcript",
 (async () => {
   ctx.historySetLimits({ flushMs: 1 });
   ctx.beginSession({ tabTitle: "Meet — abc-defg-hij" });
-  const live = connect({ diarize: true }, "interviewer");
+  const live = connect({ diarize: true }, "them");
   feed(live.ws, { transcript: "why do you want this role",
     words: diarizedWords([[0, "Why do you want this role?"]]) }, { final: true });
   await new Promise((r) => setTimeout(r, 20));
@@ -257,9 +257,9 @@ check("answer box is rendered above the transcript",
     } catch (e) { threw = e; }
     check("the panel still loads without history.js", !threw, threw && threw.message);
     if (!threw) {
-      ctx2.addFinal("interviewer", [{ speaker: 0, text: "Does the transcript still work?" }]);
+      ctx2.addFinal("them", [{ speaker: 0, text: "Does the transcript still work?" }]);
       check("…and the live transcript still renders",
-        /Interviewer:<\/span> Does the transcript still work\?/.test(els2.transcript._html), els2.transcript._html);
+        /Speaker:<\/span> Does the transcript still work\?/.test(els2.transcript._html), els2.transcript._html);
       await ctx2.stop();
       check("…and Stop reports the cause instead of throwing",
         /history\.js did not load/.test(els2.status._text), els2.status._text);

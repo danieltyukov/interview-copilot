@@ -1,5 +1,5 @@
-import interview_copilot.net as net
-from interview_copilot.net import ConnectivityMonitor
+import meeting_copilot.net as net
+from meeting_copilot.net import ConnectivityMonitor
 
 
 def test_monitor_fires_only_on_transition(monkeypatch):

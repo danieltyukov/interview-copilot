@@ -151,7 +151,7 @@
 
   <!-- wordmark -->
   <text x="404" y="214" font-family="DejaVu Sans, Verdana, sans-serif" font-weight="bold" font-size="62" fill="#e6edf3">Sparky</text>
-  <text x="406" y="252" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#9aa4b0">your interview copilot &#183; reads your repo &#183; whispers the answer</text>
+  <text x="406" y="252" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#9aa4b0">your meeting copilot &#183; reads your repo &#183; whispers the answer</text>
 
   <g transform="translate(406,276)" font-family="DejaVu Sans Mono, monospace">
     <rect x="0" y="0" width="140" height="40" rx="9" fill="#161b22" stroke="#30363d" stroke-width="2"/>

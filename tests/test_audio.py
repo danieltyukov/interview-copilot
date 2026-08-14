@@ -2,7 +2,7 @@ import wave
 
 import numpy as np
 
-from interview_copilot.audio import (FRAME_SAMPLES, FileSource, UtteranceSegmenter)
+from meeting_copilot.audio import (FRAME_SAMPLES, FileSource, UtteranceSegmenter)
 
 SR = 16000
 

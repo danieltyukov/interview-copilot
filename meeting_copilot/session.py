@@ -1,4 +1,4 @@
-"""Interview state, transcript storage and export.
+"""Meeting state, transcript storage and export.
 
 This module is deliberately free of audio, ML or LLM concerns so the core
 bookkeeping can be unit-tested without a microphone. The engine feeds it
@@ -22,7 +22,7 @@ class State(Enum):
 
 @dataclass
 class Utterance:
-    t: float  # seconds since interview start
+    t: float  # seconds since meeting start
     speaker: str  # raw cluster label: "A", "B" or "?"
     text: str
 
@@ -86,18 +86,18 @@ class Session:
     def speaker_name(self, label: str) -> str:
         if label == "?":
             return "Speaker ?"
-        if self.me_label is None:
-            return f"Speaker {label}"
         if label == self.me_label:
             return "Me"
-        return "Interviewer"
+        # Everyone who isn't me keeps their own letter, so a meeting with several
+        # other voices stays legible instead of collapsing into one name.
+        return f"Speaker {label}"
 
     # -- queries -----------------------------------------------------------
     def recent(self, n: int) -> list[Utterance]:
         return self.utterances[-n:]
 
     def latest_question(self) -> Utterance | None:
-        """The most recent thing the interviewer (not me) said.
+        """The most recent thing someone other than me said.
 
         Falls back to the most recent utterance overall when speakers are
         unknown or everything is attributed to me.
@@ -127,7 +127,7 @@ class Session:
         duration = (ended - started).total_seconds()
 
         out: list[str] = []
-        out.append(f"# Interview transcript — {context_dir.name}")
+        out.append(f"# Meeting transcript — {context_dir.name}")
         out.append("")
         out.append(f"- **Directory:** `{context_dir}`")
         out.append(f"- **Started:** {started.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -163,6 +163,6 @@ class Session:
     def write_export(self, context_dir: Path | str) -> Path:
         context_dir = Path(context_dir)
         stamp = (self.started_wall or datetime.now()).strftime("%Y%m%d-%H%M%S")
-        dest = context_dir / f"interview-{stamp}.md"
+        dest = context_dir / f"meeting-{stamp}.md"
         dest.write_text(self.export_markdown(context_dir), encoding="utf-8")
         return dest

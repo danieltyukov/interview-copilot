@@ -1,7 +1,7 @@
 """Gather a compact, text description of a project directory.
 
 The result is injected into the prompt sent to Claude when you ask for help, so
-the answer can reference the actual project you're being interviewed about. The
+the answer can reference the actual project the meeting is about. The
 output is deliberately size-bounded so it stays cheap to send and fast to read.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-# Directories that never carry useful interview context and would blow the
+# Directories that never carry useful meeting context and would blow the
 # budget if walked.
 IGNORE_DIRS = {
     ".git", "node_modules", ".venv", "venv", "env", "__pycache__", ".mypy_cache",

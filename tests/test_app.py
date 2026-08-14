@@ -2,8 +2,8 @@ import threading
 
 from rich.console import Console
 
-from interview_copilot.app import CopilotTUI
-from interview_copilot.engine import CopilotEngine, EngineConfig
+from meeting_copilot.app import CopilotTUI
+from meeting_copilot.engine import CopilotEngine, EngineConfig
 
 
 def _tui(tmp_path):

@@ -4,8 +4,8 @@
 // the panel mid-call, must not cost you the transcript.
 //
 // A record stores the raw speaker KEY per line plus a snapshot of the ordinal
-// map, never the rendered label: labels upgrade retroactively ("Interviewer"
-// becomes "Interviewer 1" the moment a second voice is heard), so freezing them
+// map, never the rendered label: labels upgrade retroactively ("Speaker"
+// becomes "Speaker 1" the moment a second voice is heard), so freezing them
 // at write time would bake in whatever was true halfway through the call.
 //
 // Loaded before sidepanel.js, which shares this file's speakerLabel/speakerClass
@@ -13,7 +13,7 @@
 
 const HISTORY_KEY = "sessions";
 const historyLimits = { cap: 50, flushMs: 2000 };
-const SPK_CLASSES = ["spk-Interviewer", "spk-other", "spk-int3", "spk-int4"];
+const SPK_CLASSES = ["spk-Speaker", "spk-other", "spk-int3", "spk-int4"];
 const TITLE_RULES = `Give this meeting transcript a short title: 3-7 words, no quotes, \
 no trailing period, no preamble. Name the topic and the kind of conversation. Reply with the title only.`;
 
@@ -40,8 +40,8 @@ function escapeHtml(s) {
 function speakerLabel(key, ordinals) {
   if (key === "me") return "Me";
   const o = ordinals || {};
-  if (Object.keys(o).length <= 1) return "Interviewer";
-  return "Interviewer " + (o[key] || Object.keys(o).length);
+  if (Object.keys(o).length <= 1) return "Speaker";
+  return "Speaker " + (o[key] || Object.keys(o).length);
 }
 function speakerClass(key, ordinals) {
   if (key === "me") return "spk-Me";
