@@ -52,6 +52,12 @@
       <button id="micBtn" class="hidden">🎤 Fix microphone access</button>
     </section>
 
+    <details class="hist" id="histBox">
+      <summary>🗂 History<span id="histCount"></span> — saved transcripts</summary>
+      <div id="histList" class="histlist"></div>
+      <button id="histClear" class="chip danger hidden">Clear all</button>
+    </details>
+
     <details class="ctx">
       <summary>Your context (pasted) — used to ground answers</summary>
       <textarea id="context" rows="5" placeholder="Paste anything useful: your résumé, the project/repo summary, the job description, key talking points…"></textarea>
@@ -81,6 +87,7 @@
 
   <script src="audio.js"></script>
   <script src="deepgram.js"></script>
+  <script src="history.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

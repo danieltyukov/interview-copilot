@@ -37,8 +37,13 @@ const document = { getElementById: (id) => els[id] || (els[id] = makeEl(id)) };
 const store = {};
 const chrome = {
   storage: { local: {
-    async get(keys) { const o = {}; (Array.isArray(keys) ? keys : Object.keys(keys)).forEach((k) => { if (k in store) o[k] = store[k]; }); return o; },
-    async set(obj) { Object.assign(store, obj); },
+    async get(keys) {
+      const o = {};
+      const list = typeof keys === "string" ? [keys] : Array.isArray(keys) ? keys : Object.keys(keys);
+      list.forEach((k) => { if (k in store) o[k] = store[k]; });
+      return o;
+    },
+    async set(obj) { Object.assign(store, JSON.parse(JSON.stringify(obj))); },
   } },
   runtime: { async sendMessage() { return { ok: false, error: "test" }; } },
 };
@@ -62,8 +67,9 @@ const ctx = {
 vm.createContext(ctx);
 
 const extDir = __dirname;
-vm.runInContext(fs.readFileSync(path.join(extDir, "deepgram.js"), "utf8"), ctx, { filename: "deepgram.js" });
-vm.runInContext(fs.readFileSync(path.join(extDir, "sidepanel.js"), "utf8"), ctx, { filename: "sidepanel.js" });
+for (const f of ["deepgram.js", "history.js", "sidepanel.js"]) {
+  vm.runInContext(fs.readFileSync(path.join(extDir, f), "utf8"), ctx, { filename: f });
+}
 
 const T = () => els.transcript ? els.transcript._html : "";
 
@@ -124,8 +130,10 @@ check("partial cleared after final", !/▌/.test(T()), T());
 check("single voice is not numbered", !/Interviewer 1/.test(T()), T());
 
 // 5) Your own leg is labelled Me and coloured separately.
+// (Apostrophes render as &#39; — escapeHtml covers quotes as well as tags, because
+// the same helper feeds value="…" attributes in the history list.)
 ctx.addFinal("me", [{ speaker: null, text: "Sure, here's a quick summary." }]);
-check("mic leg renders as Me", /spk-Me">Me:<\/span> Sure, here's a quick summary\./.test(T()), T());
+check("mic leg renders as Me", /spk-Me">Me:<\/span> Sure, here&#39;s a quick summary\./.test(T()), T());
 check("latestQuestion skips my own line", ctx.latestQuestion() === "Tell me about yourself", ctx.latestQuestion());
 
 // 6) A second far-end voice appears. Labels must upgrade to numbers RETROACTIVELY —
@@ -181,5 +189,91 @@ check("answer box is rendered above the transcript",
   html.indexOf('id="answer"') < html.indexOf('id="transcript"'),
   `answer@${html.indexOf('id="answer"')} transcript@${html.indexOf('id="transcript"')}`);
 
-console.log("\n" + (failures ? `${failures} FAIL` : "all passed") + "\n");
-process.exit(failures ? 1 : 0);
+// 12) The live transcript is persisted as it happens. This is the wiring check:
+//     a real Deepgram frame, through the real parser, must reach storage without
+//     anyone pressing Stop — closing the panel mid-call is the case that matters.
+(async () => {
+  ctx.historySetLimits({ flushMs: 1 });
+  ctx.beginSession({ tabTitle: "Meet — abc-defg-hij" });
+  const live = connect({ diarize: true }, "interviewer");
+  feed(live.ws, { transcript: "why do you want this role",
+    words: diarizedWords([[0, "Why do you want this role?"]]) }, { final: true });
+  await new Promise((r) => setTimeout(r, 20));
+
+  let saved = await ctx.listSessions();
+  check("a final utterance is persisted mid-call, before Stop",
+    saved.length === 1 && saved[0].lines.some((l) => /Why do you want this role/.test(l.text)),
+    JSON.stringify(saved.map((s) => s.lines.length)));
+
+  // Partials must NOT be persisted — they are rewritten as Deepgram hears more.
+  const before = saved[0].lines.length;
+  feed(live.ws, { transcript: "and where do you", words: diarizedWords([[0, "and where do you"]]) });
+  await new Promise((r) => setTimeout(r, 20));
+  saved = await ctx.listSessions();
+  check("partials are not persisted", saved[0].lines.length === before, JSON.stringify(saved[0].lines));
+
+  // The record is the whole live transcript, not just what arrived after beginSession:
+  // recordSession is handed the full array every time, so a session started late
+  // still captures everything the panel is showing.
+  const sealed = await ctx.endSession();
+  check("Stop seals the whole live transcript",
+    sealed.lines.length === saved[0].lines.length && /Why do you want this role/.test(sealed.lines.at(-1).text),
+    JSON.stringify(sealed.lines.at(-1)));
+  check("Stop names it from the first question asked of me", /^"Tell me about yourself/.test(sealed.title), sealed.title);
+  check("…and tags it with where it was captured", / - Meet$/.test(sealed.title), sealed.title);
+
+  // The history list itself renders: card, meta line, and the expanded transcript.
+  await ctx.refreshHistory();
+  const H = () => els.histList._html;
+  check("the saved call shows up in the history list", /sess-title/.test(H()) && /Tell me about yourself/.test(H()), H().slice(0, 200));
+  check("the card carries a meta line", /sess-meta">\d+ \w{3} \d{4}, \d{2}:\d{2}/.test(H()), H().slice(0, 300));
+  check("the summary counts saved calls", els.histCount._text === " (1)", JSON.stringify(els.histCount._text));
+  check("Clear all is offered once something is saved", !/hidden/.test(els.histClear.className), els.histClear.className);
+
+  // 13) history.js absent — a side panel Chrome kept alive across an extension
+  //     reload runs a document whose script list predates it. That threw
+  //     "endSession is not defined" out of the Stop handler. The panel must
+  //     instead keep transcribing and say plainly what is wrong.
+  {
+    const els2 = {};
+    const doc2 = {
+      getElementById: (id) => els2[id] || (els2[id] = makeEl(id)),
+      createElement: () => makeEl("tmp"),
+      body: { appendChild() {} },
+    };
+    const ctx2 = {
+      document: doc2, chrome, WebSocket: FakeWS, console,
+      JSON, URLSearchParams, TextDecoder, TextEncoder, setTimeout, clearTimeout,
+      navigator: { mediaDevices: { getUserMedia: async () => { throw new Error("no mic"); } } },
+      fetch: async () => { throw new Error("no fetch in test"); },
+    };
+    ctx2.globalThis = ctx2;
+    vm.createContext(ctx2);
+    let threw = null;
+    try {
+      for (const f of ["deepgram.js", "sidepanel.js"]) {       // history.js deliberately omitted
+        vm.runInContext(fs.readFileSync(path.join(extDir, f), "utf8"), ctx2, { filename: f });
+      }
+    } catch (e) { threw = e; }
+    check("the panel still loads without history.js", !threw, threw && threw.message);
+    if (!threw) {
+      ctx2.addFinal("interviewer", [{ speaker: 0, text: "Does the transcript still work?" }]);
+      check("…and the live transcript still renders",
+        /Interviewer:<\/span> Does the transcript still work\?/.test(els2.transcript._html), els2.transcript._html);
+      await ctx2.stop();
+      check("…and Stop reports the cause instead of throwing",
+        /history\.js did not load/.test(els2.status._text), els2.status._text);
+      await ctx2.refreshHistory();
+      check("…and the history pane says why it is empty",
+        /history\.js did not load/.test(els2.histList._html), els2.histList._html);
+    }
+  }
+
+  // 14) The invariant that keeps the above from ever being the normal path.
+  check("sidepanel.html loads history.js before sidepanel.js",
+    html.indexOf('src="history.js"') > 0 && html.indexOf('src="history.js"') < html.indexOf('src="sidepanel.js"'),
+    `history@${html.indexOf('src="history.js"')} sidepanel@${html.indexOf('src="sidepanel.js"')}`);
+
+  console.log("\n" + (failures ? `${failures} FAIL` : "all passed") + "\n");
+  process.exit(failures ? 1 : 0);
+})();

@@ -40,7 +40,32 @@ required (interview accommodations, etc.).
    you can confirm capture.
 5. Press **Help** at any time to draft a first-person answer to the interviewer's
    latest question.
-6. Press **Stop** when done.
+6. Press **Stop** when done. The call is saved to **History** automatically.
+
+## History
+
+Every call is written to `chrome.storage.local` **as it happens**, not at Stop, so
+closing the side panel mid-call or forgetting to press Stop does not lose the
+transcript. Open **History** in the panel to get the last 50 calls, newest first
+(older ones are pruned automatically).
+
+Each entry is named for you: the title is the first question asked of you,
+quoted, plus the call app (`"Tell me about yourself." - Meet`). If an Anthropic
+key is set, Stop then upgrades that to a one-line summary of what the call was
+actually about, using haiku. A failed or absent title call just leaves the quote.
+
+Per entry you can:
+
+- **click the title** to read the whole transcript inline, labelled and coloured
+  per voice exactly as it was live
+- **Copy** it as labelled plain text
+- **Download** it as Markdown to `Downloads/sparky/YYYY-MM-DD-<title>.md`
+- **Rename** it (Enter saves, Escape cancels)
+- **Delete** it, or **Clear all**
+
+Delete and Clear all arm on the first click and fire on the second, and nothing
+leaves your machine: transcripts sit in the extension's own local storage, which
+is why deleting a call you would rather not keep is one click away.
 
 ## Troubleshooting — "I don't see any transcript"
 
@@ -99,4 +124,6 @@ rendering path in code.)
   Browser echo cancellation plus a text-level duplicate filter (a line arriving
   on both sources within a few seconds is dropped) keeps that out of the
   transcript. Short backchannels like "yes" are deliberately never filtered.
-- Personal-use tool: keys live client-side; there is no server.
+- Personal-use tool: keys live client-side; there is no server. Saved transcripts
+  live in the same local storage, unencrypted — anything with access to your
+  Chrome profile can read them.

@@ -53,6 +53,21 @@ button.primary { background: #3a2f08; border-color: var(--brand); color: #fde68a
 details summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
 details label { display: block; margin: 6px 0; color: var(--muted); }
 details label.inline { display: flex; align-items: center; gap: 6px; }
+/* history */
+.histlist { max-height: 40vh; overflow: auto; margin: 6px 0; }
+.sess { border: 1px solid var(--border); border-radius: 9px; padding: 7px 8px; margin-bottom: 6px; }
+.sess-title { display: block; width: 100%; text-align: left; background: none; border: 0;
+  padding: 0; color: var(--text); font: inherit; cursor: pointer; }
+.sess-title:hover { color: var(--brand); }
+.sess-rename { margin-bottom: 4px; }
+.sess-meta { color: var(--muted); font-size: 10.5px; margin: 3px 0 6px; }
+.sess-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+.sess-btns .chip { font-size: 11px; padding: 2px 7px; }
+.chip.danger:hover { border-color: var(--red); color: var(--red); }
+.sess-body { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border);
+  max-height: 30vh; overflow: auto; }
+.sess-body .line { margin: 2px 0; }
+
 footer { padding: 6px 10px; border-top: 1px solid var(--border); font-size: 11px; }
 .diag { color: #6e7681; font-size: 10.5px; margin-top: 3px; }
 

@@ -19,9 +19,36 @@ Rules:
 const $ = (id) => document.getElementById(id);
 const settings = { deepgramKey: "", anthropicKey: "", model: "sonnet", language: "en", context: "" };
 
+// Everything this panel borrows from history.js. A side panel that Chrome kept
+// alive across an extension reload still runs the document it was opened with, so
+// a page from before history.js existed loads the new sidepanel.js against the old
+// script list — which surfaced as "endSession is not defined" thrown from a click
+// handler, pointing at entirely the wrong file. Check once, say so plainly, and
+// keep transcription working without history rather than dying on Stop.
+const HISTORY_API = [
+  "beginSession", "noteSessionSource", "recordSession", "endSession", "autoTitleSession",
+  "listSessions", "renameSession", "deleteSession", "clearSessions",
+  "sessionLines", "sessionText", "sessionMarkdown", "sessionFilename", "sessionMeta",
+  "sessionTitleHtml", "speakerLabel", "speakerClass", "escapeHtml",
+];
+const historyMissing = HISTORY_API.filter((fn) => typeof globalThis[fn] !== "function");
+const historyReady = historyMissing.length === 0;
+const HISTORY_BROKEN = "History is unavailable — history.js did not load. Close the side panel and reopen it (Chrome keeps the old page alive across an extension reload).";
+
+if (!historyReady) {
+  // Stand-ins for the three display helpers, so a missing history.js costs you the
+  // history pane and nothing else — the live transcript still renders and labels.
+  globalThis.escapeHtml ||= (s) => String(s).replace(/[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  globalThis.speakerLabel ||= (key, ord) => (key === "me" ? "Me"
+    : "Interviewer" + (Object.keys(ord || {}).length > 1 ? " " + (ord[key] || 1) : ""));
+  globalThis.speakerClass ||= (key) => (key === "me" ? "spk-Me" : "spk-Interviewer");
+  console.error("Sparky: history.js missing —", historyMissing.join(", "));
+}
+
 const utterances = [];                        // { key, text, t }
 const partials = { me: [], interviewer: [] }; // capture leg -> [{ speaker, text }]
-const speakerOrdinals = new Map();            // "int:N" -> 1,2,3… in first-heard order
+const speakerOrdinals = {};                   // "int:N" -> 1,2,3… in first-heard order
 let hub = null;
 let sources = [];                             // [{ stop() }]
 let recording = false;                        // drives the "listening…" placeholder
@@ -42,24 +69,17 @@ function updateDiag() {
 // ---- speaker identity ----
 // A capture leg plus Deepgram's speaker index resolve to a stable key. Labels are
 // derived at render time, so a 1:1 call reads "Interviewer" and every line upgrades
-// to numbered labels the moment a second voice is heard.
+// to numbered labels the moment a second voice is heard. speakerLabel/speakerClass
+// live in history.js so a reopened transcript labels itself exactly like the live one.
 function speakerKey(leg, speaker) {
   if (leg === "me") return "me";
   return "int:" + (typeof speaker === "number" ? speaker : 0);
 }
 function registerSpeaker(key) {
-  if (key !== "me" && !speakerOrdinals.has(key)) speakerOrdinals.set(key, speakerOrdinals.size + 1);
+  if (key !== "me" && !(key in speakerOrdinals)) speakerOrdinals[key] = Object.keys(speakerOrdinals).length + 1;
 }
-function labelFor(key) {
-  if (key === "me") return "Me";
-  if (speakerOrdinals.size <= 1) return "Interviewer";
-  return "Interviewer " + (speakerOrdinals.get(key) || speakerOrdinals.size);
-}
-const INT_CLASSES = ["spk-Interviewer", "spk-other", "spk-int3", "spk-int4"];
-function cls(key) {
-  if (key === "me") return "spk-Me";
-  return INT_CLASSES[((speakerOrdinals.get(key) || 1) - 1) % INT_CLASSES.length];
-}
+function labelFor(key) { return speakerLabel(key, speakerOrdinals); }
+function cls(key) { return speakerClass(key, speakerOrdinals); }
 
 // ---- echo guard ----
 // On speakers the mic re-hears the call, and any leak of your voice into the tab
@@ -112,7 +132,6 @@ async function saveSettings() {
 }
 
 // ---- transcript ----
-function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
 function render() {
   const box = $("transcript");
   if (!utterances.length && !partials.me.length && !partials.interviewer.length) {
@@ -155,6 +174,7 @@ function addFinal(leg, segments) {
     utterances.push({ key, text, t: now });
   }
   partials[leg] = [];
+  if (historyReady) recordSession(utterances, speakerOrdinals);  // finals only — partials are guesses
   render();
 }
 function setPartial(leg, segments) {
@@ -246,7 +266,8 @@ async function start() {
   // would silently pin a fresh voice to the previous call's label.
   utterances.length = 0;
   partials.me = []; partials.interviewer = [];
-  speakerOrdinals.clear();
+  for (const k of Object.keys(speakerOrdinals)) delete speakerOrdinals[k];
+  if (historyReady) beginSession({});        // the tab title arrives below, once capture starts
   micAttached = false;
   frames.me = 0; frames.interviewer = 0;
   dgOpen.me = false; dgOpen.interviewer = false;
@@ -266,13 +287,16 @@ async function start() {
       audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: resp.streamId } },
     });
     attach("interviewer", tab, { playback: true, diarize: true });  // playback so you still hear the call
+    if (historyReady) noteSessionSource(resp.tabTitle);
     status("Capturing: " + (resp.tabTitle || "active tab"));
   } catch (e) {
     status("Tab capture failed: " + e.message, true);
   }
 }
 
-function stop() {
+// Teardown is synchronous — the audio must stop the instant you click. Sealing the
+// transcript happens after, and the optional Claude retitle after that.
+async function stop() {
   sources.forEach((s) => { try { s.stop(); } catch {} });
   sources = [];
   try { hub && hub.close(); } catch {}
@@ -280,6 +304,131 @@ function stop() {
   micAttached = false;
   setState("stopped");
   updateDiag();
+
+  if (!historyReady) return status(HISTORY_BROKEN, true);
+  const saved = await endSession();
+  if (!saved) return;                      // nobody spoke — nothing worth keeping
+  await refreshHistory();
+  status("Saved to history: " + saved.title);
+  const better = await autoTitleSession(saved.id, settings.anthropicKey, API_MODEL_IDS.haiku);
+  if (better) { await refreshHistory(); status("Saved to history: " + better); }
+}
+
+// ---- history ----
+// Saved calls, newest first. Destructive actions arm on the first click and fire
+// on the second: window.confirm() blocks the whole side panel, and these
+// transcripts are the one thing here you can't get back.
+let historySessions = [];
+const expanded = new Set();
+let renamingId = null;
+let armedId = null;                            // id awaiting a confirming second click ("all" = clear)
+
+async function refreshHistory() {
+  if (!historyReady) {
+    $("histList").innerHTML = `<div class="muted">${escapeHtml(HISTORY_BROKEN)}</div>`;
+    return;
+  }
+  historySessions = await listSessions();
+  renderHistory();
+}
+function sessionCard(s) {
+  const open = expanded.has(s.id);
+  const head = renamingId === s.id
+    ? `<input class="sess-rename" value="${escapeHtml(s.title)}" placeholder="Name this call">`
+    : `<button class="sess-title" data-act="toggle">${open ? "▾" : "▸"} ${sessionTitleHtml(s)}</button>`;
+  const body = open
+    ? `<div class="sess-body">${sessionLines(s)
+        .map((l) => `<div class="line"><span class="${l.cls}">${l.label}:</span> ${l.html}</div>`).join("")}</div>`
+    : "";
+  return `<div class="sess" data-id="${s.id}">${head}
+    <div class="sess-meta">${escapeHtml(sessionMeta(s))}</div>
+    <div class="sess-btns">
+      <button class="chip" data-act="copy">Copy</button>
+      <button class="chip" data-act="download">Download</button>
+      <button class="chip" data-act="rename">Rename</button>
+      <button class="chip danger" data-act="delete">${armedId === s.id ? "Delete — sure?" : "Delete"}</button>
+    </div>${body}</div>`;
+}
+function renderHistory() {
+  $("histCount").textContent = historySessions.length ? ` (${historySessions.length})` : "";
+  $("histClear").textContent = armedId === "all" ? "Delete every transcript — sure?" : "Clear all";
+  $("histClear").className = "chip danger" + (historySessions.length ? "" : " hidden");
+  $("histList").innerHTML = historySessions.length
+    ? historySessions.map(sessionCard).join("")
+    : '<div class="muted">Nothing saved yet. Every call you Start is kept here automatically.</div>';
+}
+
+// Side panels can lose document focus, which makes the async clipboard reject.
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch {}
+    ta.remove();
+    return ok;
+  }
+}
+
+async function onHistoryClick(e) {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const act = btn.dataset.act;
+  const card = e.target.closest(".sess");
+  const s = historySessions.find((x) => x.id === (card && card.dataset.id));
+  if (!s) return;
+  if (act !== "delete") armedId = null;
+  if (act !== "rename") renamingId = null;
+
+  if (act === "toggle") {
+    expanded.has(s.id) ? expanded.delete(s.id) : expanded.add(s.id);
+    renderHistory();
+  } else if (act === "copy") {
+    status((await copyText(sessionText(s))) ? "Transcript copied." : "Copy failed — expand it and select the text.");
+    renderHistory();
+  } else if (act === "download") {
+    const url = URL.createObjectURL(new Blob([sessionMarkdown(s)], { type: "text/markdown" }));
+    chrome.downloads.download({ url, filename: sessionFilename(s), saveAs: false }, () => {
+      if (chrome.runtime.lastError) status("Download failed: " + chrome.runtime.lastError.message, true);
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    });
+    renderHistory();
+  } else if (act === "rename") {
+    renamingId = s.id;
+    renderHistory();
+    const input = $("histList").querySelector(".sess-rename");
+    if (input) { input.focus(); input.select(); }
+  } else if (act === "delete") {
+    if (armedId !== s.id) { armedId = s.id; renderHistory(); return; }
+    armedId = null;
+    await deleteSession(s.id);
+    expanded.delete(s.id);
+    await refreshHistory();
+  }
+}
+async function onHistoryKey(e) {
+  if (!e.target.classList || !e.target.classList.contains("sess-rename")) return;
+  if (e.key === "Enter") {
+    const id = renamingId;
+    renamingId = null;
+    await renameSession(id, e.target.value);
+    await refreshHistory();
+  } else if (e.key === "Escape") {
+    renamingId = null;
+    renderHistory();
+  }
+}
+async function onClearHistory() {
+  if (armedId !== "all") { armedId = "all"; renderHistory(); return; }
+  armedId = null;
+  await clearSessions();
+  expanded.clear();
+  await refreshHistory();
 }
 
 // ---- answer drafting (Anthropic streaming) ----
@@ -378,6 +527,11 @@ $("helpBtn").addEventListener("click", help);
 $("micBtn").addEventListener("click", onMicBtn);
 $("saveBtn").addEventListener("click", saveSettings);
 $("context").addEventListener("change", saveSettings);
+$("histList").addEventListener("click", onHistoryClick);
+$("histList").addEventListener("keydown", onHistoryKey);
+$("histClear").addEventListener("click", onClearHistory);
+$("histBox").addEventListener("toggle", () => { if ($("histBox").open) refreshHistory(); });
 
 loadSettings();
 setState("idle");
+refreshHistory();
